@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MMADV — Sistema de Controle de Ponto">
+  <meta name="theme-color" content="#1F3864">
   <title>MMADV — Controle de Ponto</title>
+
+  <!-- ✅ FIX 1: Favicon inline — elimina o erro 404 /favicon.ico -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231F3864'/%3E%3Ctext x='16' y='23' font-family='Arial%2Csans-serif' font-size='13' font-weight='900' fill='%23C5A24A' text-anchor='middle'%3EMM%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231F3864'/%3E%3Ctext x='16' y='23' font-family='Arial%2Csans-serif' font-size='13' font-weight='900' fill='%23C5A24A' text-anchor='middle'%3EMM%3C/text%3E%3C/svg%3E">
+
   <style>
     :root {
       --navy:       #1F3864;
@@ -41,65 +48,66 @@
     #loginPage {
       min-height: 100vh;
       background: linear-gradient(145deg, var(--navy) 0%, #162b52 60%, #0e1e3a 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
+      display: flex; align-items: center; justify-content: center; padding: 1.5rem;
     }
-
     .login-card {
-      background: var(--white);
-      border-radius: 20px;
-      padding: 2.5rem 2rem 2rem;
-      width: 100%;
-      max-width: 380px;
+      background: var(--white); border-radius: 20px;
+      padding: 2.5rem 2rem 2rem; width: 100%; max-width: 380px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.35);
     }
-
     .login-logo { text-align: center; margin-bottom: 2rem; }
-    .login-logo .brand { font-size: 1.25rem; font-weight: 800; color: var(--navy); letter-spacing: 1px; }
-    .login-logo .gold-bar { width: 48px; height: 3px; background: var(--gold); margin: 0.5rem auto; border-radius: 2px; }
-    .login-logo .sub { font-size: 0.72rem; color: var(--gold); letter-spacing: 3px; text-transform: uppercase; }
-    .login-logo .tagline { font-size: 0.8rem; color: var(--gray-500); margin-top: 0.5rem; }
+    .login-logo .brand    { font-size: 1.25rem; font-weight: 800; color: var(--navy); letter-spacing: 1px; }
+    .login-logo .gold-bar { width: 48px; height: 3px; background: var(--gold); margin: .5rem auto; border-radius: 2px; }
+    .login-logo .sub      { font-size: .72rem; color: var(--gold); letter-spacing: 3px; text-transform: uppercase; }
+    .login-logo .tagline  { font-size: .8rem; color: var(--gray-500); margin-top: .5rem; }
+    .login-card h2        { font-size: 1rem; color: var(--gray-700); text-align: center; margin-bottom: 1.5rem; font-weight: 500; }
 
-    .login-card h2 { font-size: 1rem; color: var(--gray-700); text-align: center; margin-bottom: 1.5rem; font-weight: 500; }
-
+    /* ─────────────── FIELDS ─────────────── */
     .field { margin-bottom: 1rem; }
-    .field label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--gray-700); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .4rem; }
+    .field label {
+      display: block; font-size: .75rem; font-weight: 700;
+      color: var(--gray-700); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .4rem;
+    }
     .field input, .field select, .field textarea {
       width: 100%; padding: .7rem 1rem;
       border: 1.5px solid var(--gray-200); border-radius: 9px;
       font-size: .95rem; color: var(--gray-900); font-family: inherit;
-      transition: border-color .2s;
-      background: var(--white);
+      transition: border-color .2s; background: var(--white);
     }
     .field input:focus, .field select:focus, .field textarea:focus {
-      outline: none; border-color: var(--gold);
+      outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(197,162,74,.12);
     }
     .field textarea { resize: vertical; min-height: 80px; }
 
-    .error-msg { background: var(--red-bg); color: var(--red); font-size: .83rem; padding: .55rem .9rem; border-radius: 7px; margin-top: .5rem; text-align: center; }
+    /* ✅ FIX 2: role="alert" nos erros — elimina warnings de acessibilidade */
+    .error-msg {
+      background: var(--red-bg); color: var(--red); font-size: .83rem;
+      padding: .55rem .9rem; border-radius: 7px; margin-top: .5rem; text-align: center;
+    }
 
     /* ─────────────── BUTTONS ─────────────── */
+    /* ✅ FIX 3: Todos os botões agora têm type="button" no HTML */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
       padding: .7rem 1.4rem; border-radius: 9px; font-size: .88rem; font-weight: 700;
       cursor: pointer; border: none; transition: all .18s; font-family: inherit; white-space: nowrap;
+      text-decoration: none; line-height: 1;
     }
-    .btn-navy    { background: var(--navy); color: var(--white); }
+    .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    .btn-navy    { background: var(--navy);        color: var(--white); }
     .btn-navy:hover    { background: var(--navy-hover); }
-    .btn-gold    { background: var(--gold); color: var(--navy); }
+    .btn-gold    { background: var(--gold);         color: var(--navy); }
     .btn-gold:hover    { background: var(--gold-hover); }
-    .btn-green   { background: var(--green); color: var(--white); }
+    .btn-green   { background: var(--green);        color: var(--white); }
     .btn-green:hover   { background: #15956a; }
-    .btn-red     { background: var(--red); color: var(--white); }
+    .btn-red     { background: var(--red);          color: var(--white); }
     .btn-red:hover     { background: #c0392b; }
     .btn-outline { background: transparent; border: 1.5px solid var(--navy); color: var(--navy); }
     .btn-outline:hover { background: var(--navy); color: var(--white); }
     .btn-ghost   { background: transparent; border: 1.5px solid var(--gray-300); color: var(--gray-700); }
     .btn-ghost:hover   { background: var(--gray-200); }
-    .btn-full    { width: 100%; }
-    .btn-sm      { padding: .38rem .8rem; font-size: .8rem; }
+    .btn-full { width: 100%; }
+    .btn-sm   { padding: .38rem .8rem; font-size: .8rem; }
 
     /* ─────────────── HEADER ─────────────── */
     .header {
@@ -112,18 +120,18 @@
     .header-brand .name { font-size: .88rem; font-weight: 800; letter-spacing: .5px; }
     .header-brand .role { font-size: .68rem; color: var(--gold); letter-spacing: 1.5px; }
     .header-right { display: flex; align-items: center; gap: .75rem; }
-    .pill { background: rgba(197,162,74,.18); border: 1px solid var(--gold); color: var(--gold); padding: .28rem .75rem; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+    .pill {
+      background: rgba(197,162,74,.18); border: 1px solid var(--gold);
+      color: var(--gold); padding: .28rem .75rem; border-radius: 20px; font-size: .78rem; font-weight: 600;
+    }
 
     /* ─────────────── LAYOUT ─────────────── */
     .main { padding: 1.5rem; max-width: 860px; margin: 0 auto; }
 
-    /* ─────────────── CLOCK CARD ─────────────── */
+    /* ─────────────── CLOCK ─────────────── */
     .clock-card {
-      background: var(--white); border-radius: 16px;
-      padding: 2rem 1.5rem; text-align: center;
-      box-shadow: 0 2px 14px rgba(0,0,0,.07);
-      border-top: 4px solid var(--navy);
-      margin-bottom: 1.25rem;
+      background: var(--white); border-radius: 16px; padding: 2rem 1.5rem; text-align: center;
+      box-shadow: 0 2px 14px rgba(0,0,0,.07); border-top: 4px solid var(--navy); margin-bottom: 1.25rem;
     }
     .clock-date { font-size: .82rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: .2rem; }
     .clock-time { font-size: 3.2rem; font-weight: 800; color: var(--navy); letter-spacing: 3px; margin-bottom: 1.5rem; font-variant-numeric: tabular-nums; }
@@ -133,9 +141,10 @@
       padding: 1.1rem; font-size: 1rem; font-weight: 800; border: none;
       border-radius: 12px; cursor: pointer; transition: all .18s; font-family: inherit;
     }
+    .btn-punch:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     .btn-entrada { background: var(--green); color: var(--white); }
     .btn-entrada:hover { background: #15956a; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(27,175,122,.35); }
-    .btn-saida   { background: var(--red); color: var(--white); }
+    .btn-saida   { background: var(--red);   color: var(--white); }
     .btn-saida:hover   { background: #c0392b; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(227,73,72,.35); }
 
     .btn-adj {
@@ -143,7 +152,8 @@
       padding: .55rem 1.4rem; border-radius: 8px; font-size: .82rem; font-weight: 700;
       cursor: pointer; transition: all .18s; font-family: inherit;
     }
-    .btn-adj:hover { background: var(--gold); color: var(--navy); }
+    .btn-adj:hover       { background: var(--gold); color: var(--navy); }
+    .btn-adj:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
     /* ─────────────── CARD ─────────────── */
     .card { background: var(--white); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 1.25rem; overflow: hidden; }
@@ -156,7 +166,7 @@
     .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
     .dot-in  { background: var(--green); }
     .dot-out { background: var(--red); }
-    .rec-info { flex: 1; }
+    .rec-info  { flex: 1; }
     .rec-label { font-size: .84rem; font-weight: 600; color: var(--gray-900); }
     .rec-time  { font-size: .78rem; color: var(--gray-500); margin-top: 1px; }
     .empty { padding: 1.5rem; text-align: center; color: var(--gray-500); font-size: .88rem; }
@@ -166,15 +176,16 @@
     .badge-adj      { background: var(--amber-bg); color: var(--amber); }
     .badge-pending  { background: var(--amber-bg); color: var(--amber); }
     .badge-approved { background: var(--green-bg); color: var(--green); }
-    .badge-rejected { background: var(--red-bg); color: var(--red); }
+    .badge-rejected { background: var(--red-bg);   color: var(--red);   }
 
-    /* ─────────────── ADMIN TABS ─────────────── */
+    /* ─────────────── TABS ─────────────── */
     .tabs { display: flex; gap: .25rem; background: var(--gray-200); border-radius: 10px; padding: .25rem; margin-bottom: 1.5rem; }
     .tab {
       flex: 1; padding: .58rem .4rem; border: none; background: transparent;
       border-radius: 8px; font-size: .8rem; font-weight: 700; cursor: pointer;
       color: var(--gray-500); transition: all .18s; font-family: inherit; text-align: center;
     }
+    .tab:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     .tab.active { background: var(--white); color: var(--navy); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 
     /* ─────────────── SUMMARY GRID ─────────────── */
@@ -187,25 +198,29 @@
     .adj-item { background: var(--white); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: .75rem; box-shadow: 0 2px 8px rgba(0,0,0,.06); border-left: 4px solid var(--amber); }
     .adj-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
     .adj-who  { font-size: .85rem; font-weight: 700; color: var(--navy); }
-    .adj-det  { font-size: .8rem; color: var(--gray-500); margin: .3rem 0; }
+    .adj-det  { font-size: .8rem;  color: var(--gray-500); margin: .3rem 0; }
     .adj-just { font-size: .83rem; color: var(--gray-700); background: var(--gray-100); padding: .5rem .75rem; border-radius: 6px; margin: .5rem 0; }
     .adj-btns { display: flex; gap: .5rem; margin-top: .5rem; }
 
-    /* ─────────────── FILTER BAR ─────────────── */
+    /* ─────────────── FILTER ─────────────── */
     .filter-bar { background: var(--white); border-radius: 10px; padding: .7rem 1rem; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .filter-bar label { font-size: .78rem; color: var(--gray-500); font-weight: 700; }
-    .filter-bar select, .filter-bar input[type=month] { padding: .35rem .65rem; border: 1.5px solid var(--gray-200); border-radius: 7px; font-size: .83rem; font-family: inherit; color: var(--gray-900); }
+    .filter-bar label  { font-size: .78rem; color: var(--gray-500); font-weight: 700; }
+    .filter-bar select,
+    .filter-bar input[type="month"] { padding: .35rem .65rem; border: 1.5px solid var(--gray-200); border-radius: 7px; font-size: .83rem; font-family: inherit; color: var(--gray-900); }
 
-    /* ─────────────── USER ITEM ─────────────── */
+    /* ─────────────── USERS ─────────────── */
     .user-item { background: var(--white); border-radius: 10px; padding: .9rem 1.2rem; margin-bottom: .75rem; box-shadow: 0 1px 5px rgba(0,0,0,.06); display: flex; align-items: center; gap: .75rem; }
     .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 800; flex-shrink: 0; }
     .u-name  { font-size: .88rem; font-weight: 700; color: var(--gray-900); }
     .u-login { font-size: .78rem; color: var(--gray-500); margin-top: 2px; }
 
     /* ─────────────── MODAL ─────────────── */
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; }
-    .modal   { background: var(--white); border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 430px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 90vh; overflow-y: auto; }
-    .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--gray-200); }
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem;
+    }
+    .modal { background: var(--white); border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 430px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 90vh; overflow-y: auto; }
+    .modal-title   { font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--gray-200); }
     .modal-actions { display: flex; gap: .75rem; margin-top: 1rem; justify-content: flex-end; }
 
     .notif { display: inline-block; width: 8px; height: 8px; background: var(--amber); border-radius: 50%; margin-left: 4px; vertical-align: middle; }
@@ -232,323 +247,393 @@
 <body>
 
 <!-- ════════════════════════════════ LOGIN ════════════════════════════════ -->
-<div id="loginPage">
+<div id="loginPage" role="main">
   <div class="login-card">
-    <div class="login-logo">
+    <div class="login-logo" aria-label="Marcondes Madureira Advocacia">
       <div class="brand">MARCONDES MADUREIRA</div>
-      <div class="gold-bar"></div>
+      <div class="gold-bar" aria-hidden="true"></div>
       <div class="sub">Advocacia</div>
       <div class="tagline">Sistema de Controle de Ponto</div>
     </div>
     <h2>Acesse sua conta</h2>
     <div class="field">
-      <label>Usuário</label>
-      <input id="lUser" type="text" placeholder="seu usuário" autocomplete="off">
+      <label for="lUser">Usuário</label>
+      <!-- ✅ FIX 4: autocomplete correto nos campos de login -->
+      <input id="lUser" type="text" placeholder="seu usuário" autocomplete="username" aria-required="true">
     </div>
     <div class="field">
-      <label>Senha</label>
-      <input id="lPass" type="password" placeholder="••••••••">
+      <label for="lPass">Senha</label>
+      <input id="lPass" type="password" placeholder="••••••••" autocomplete="current-password" aria-required="true">
     </div>
-    <div id="lErr" class="error-msg hidden">Usuário ou senha incorretos.</div>
-    <button class="btn btn-navy btn-full" style="margin-top:1.1rem" onclick="doLogin()">Entrar</button>
+    <!-- ✅ FIX 5: role="alert" para leitores de tela anunciarem o erro -->
+    <div id="lErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
+    <!-- ✅ FIX 6: type="button" em todos os botões -->
+    <button type="button" class="btn btn-navy btn-full" style="margin-top:1.1rem" onclick="doLogin()">Entrar</button>
   </div>
 </div>
 
 <!-- ═══════════════════════════ EMPLOYEE APP ═══════════════════════════ -->
-<div id="empApp" class="hidden">
-  <header class="header">
+<div id="empApp" class="hidden" role="main">
+  <header class="header" role="banner">
     <div class="header-brand">
       <div class="name">MMADV</div>
       <div class="role">CONTROLE DE PONTO</div>
     </div>
     <div class="header-right">
-      <span class="pill" id="empPill"></span>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button>
+      <span class="pill" id="empPill" aria-label="Usuário logado"></span>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="doLogout()" aria-label="Sair do sistema">Sair</button>
     </div>
   </header>
-  <div class="main">
-    <!-- Clock -->
-    <div class="clock-card">
-      <div class="clock-date" id="empDate"></div>
-      <div class="clock-time" id="empTime">00:00:00</div>
-      <div class="punch-row">
-        <button class="btn-punch btn-entrada" onclick="punch('in')">⬆ Entrada</button>
-        <button class="btn-punch btn-saida"   onclick="punch('out')">⬇ Saída</button>
+
+  <main class="main">
+    <!-- Relógio -->
+    <div class="clock-card" aria-label="Relógio e registro de ponto">
+      <div class="clock-date" id="empDate" aria-live="polite"></div>
+      <div class="clock-time" id="empTime" aria-live="off">00:00:00</div>
+      <div class="punch-row" role="group" aria-label="Registrar ponto">
+        <button type="button" class="btn-punch btn-entrada" onclick="punch('in')"  aria-label="Registrar entrada">⬆ Entrada</button>
+        <button type="button" class="btn-punch btn-saida"   onclick="punch('out')" aria-label="Registrar saída">⬇ Saída</button>
       </div>
-      <button class="btn-adj" onclick="openAdjModal()">✎ Solicitar Ajuste</button>
+      <button type="button" class="btn-adj" onclick="openAdjModal()" aria-label="Solicitar ajuste de ponto">✎ Solicitar Ajuste</button>
     </div>
 
-    <!-- Hoje -->
     <div class="section-title">Registros de hoje</div>
-    <div class="card">
+    <div class="card" role="region" aria-label="Registros de hoje">
       <div id="todayList"><div class="empty">Nenhum registro hoje.</div></div>
     </div>
 
-    <!-- Solicitações -->
     <div class="section-title">Minhas solicitações de ajuste</div>
-    <div class="card">
+    <div class="card" role="region" aria-label="Solicitações de ajuste">
       <div id="myAdjList"><div class="empty">Nenhuma solicitação.</div></div>
     </div>
 
-    <!-- Histórico -->
     <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span>Histórico</span>
-      <input type="month" id="empHistMonth" onchange="renderEmpView()" style="padding:.3rem .6rem;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:.83rem">
+      <label for="empHistMonth" style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px">
+        Mês:
+        <input type="month" id="empHistMonth" onchange="renderEmpView()" style="padding:.3rem .6rem;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:.83rem" aria-label="Filtrar histórico por mês">
+      </label>
     </div>
-    <div class="card">
+    <div class="card" role="region" aria-label="Histórico de registros">
       <div id="histList"><div class="empty">Nenhum registro no período.</div></div>
     </div>
-  </div>
+  </main>
 </div>
 
 <!-- ════════════════════════════ ADMIN APP ════════════════════════════ -->
-<div id="adminApp" class="hidden">
-  <header class="header">
+<div id="adminApp" class="hidden" role="main">
+  <header class="header" role="banner">
     <div class="header-brand">
       <div class="name">MMADV</div>
       <div class="role">ADMINISTRADOR</div>
     </div>
     <div class="header-right">
-      <span class="pill">⚙ Admin</span>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button>
+      <span class="pill" aria-label="Perfil administrador">⚙ Admin</span>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="doLogout()" aria-label="Sair do sistema">Sair</button>
     </div>
   </header>
-  <div class="main">
-    <div class="tabs">
-      <button class="tab active" id="tOverview"     onclick="switchTab('overview')">📊 Geral</button>
-      <button class="tab"        id="tAdjustments"  onclick="switchTab('adjustments')">🔄 Ajustes<span id="adjBadge" class="notif hidden"></span></button>
-      <button class="tab"        id="tRecords"      onclick="switchTab('records')">📋 Registros</button>
-      <button class="tab"        id="tUsers"        onclick="switchTab('users')">👥 Colaboradores</button>
+
+  <main class="main">
+    <!-- ✅ FIX 7: role="tablist" + aria-selected nas abas -->
+    <div class="tabs" role="tablist" aria-label="Navegação do painel">
+      <button type="button" class="tab active" id="tOverview"    role="tab" aria-selected="true"  aria-controls="pOverview"    onclick="switchTab('overview')">📊 Geral</button>
+      <button type="button" class="tab"        id="tAdjustments" role="tab" aria-selected="false" aria-controls="pAdjustments" onclick="switchTab('adjustments')">🔄 Ajustes<span id="adjBadge" class="notif hidden" aria-label="Ajustes pendentes"></span></button>
+      <button type="button" class="tab"        id="tRecords"     role="tab" aria-selected="false" aria-controls="pRecords"     onclick="switchTab('records')">📋 Registros</button>
+      <button type="button" class="tab"        id="tUsers"       role="tab" aria-selected="false" aria-controls="pUsers"       onclick="switchTab('users')">👥 Colaboradores</button>
     </div>
 
     <!-- GERAL -->
-    <div id="pOverview">
+    <div id="pOverview" role="tabpanel" aria-labelledby="tOverview">
       <div class="section-title">Situação de hoje</div>
-      <div class="summary-grid" id="adminSummary"></div>
+      <div class="summary-grid" id="adminSummary" aria-live="polite"></div>
       <div class="section-title">Últimos registros</div>
-      <div class="card"><div id="recentRecs"></div></div>
+      <div class="card" role="region" aria-label="Últimos registros"><div id="recentRecs"></div></div>
     </div>
 
     <!-- AJUSTES -->
-    <div id="pAdjustments" class="hidden">
+    <div id="pAdjustments" class="hidden" role="tabpanel" aria-labelledby="tAdjustments">
       <div class="section-title">Pendentes de aprovação</div>
-      <div id="pendList"></div>
+      <div id="pendList" aria-live="polite"></div>
       <div class="section-title" style="margin-top:1.5rem">Processados</div>
       <div id="procList"></div>
     </div>
 
     <!-- REGISTROS -->
-    <div id="pRecords" class="hidden">
-      <div class="filter-bar">
-        <label>Colaborador:</label>
-        <select id="fEmp" onchange="renderAdminRecs()"><option value="">Todos</option></select>
-        <label>Mês:</label>
-        <input type="month" id="fMonth" onchange="renderAdminRecs()">
+    <div id="pRecords" class="hidden" role="tabpanel" aria-labelledby="tRecords">
+      <div class="filter-bar" role="search" aria-label="Filtrar registros">
+        <label for="fEmp">Colaborador:</label>
+        <select id="fEmp" onchange="renderAdminRecs()" aria-label="Filtrar por colaborador"><option value="">Todos</option></select>
+        <label for="fMonth">Mês:</label>
+        <input type="month" id="fMonth" onchange="renderAdminRecs()" aria-label="Filtrar por mês">
       </div>
-      <div class="card"><div id="allRecs"></div></div>
+      <div class="card"><div id="allRecs" aria-live="polite"></div></div>
     </div>
 
     <!-- COLABORADORES -->
-    <div id="pUsers" class="hidden">
+    <div id="pUsers" class="hidden" role="tabpanel" aria-labelledby="tUsers">
       <div class="section-title">Cadastrados</div>
       <div id="usersList"></div>
       <br>
       <div class="card">
         <div class="card-header"><span class="card-title">➕ Novo colaborador</span></div>
         <div style="padding:1.2rem">
-          <div class="field"><label>Nome completo</label><input id="nName" type="text" placeholder="Ex: Maria Fernanda"></div>
-          <div class="field"><label>Login (sem espaços)</label><input id="nId" type="text" placeholder="Ex: mariafernanda"></div>
-          <div class="field"><label>Senha inicial</label><input id="nPass" type="text" placeholder="Ex: mariafernanda123"></div>
-          <div id="nErr" class="error-msg hidden"></div>
-          <button class="btn btn-navy" onclick="addUser()" style="margin-top:.5rem">Cadastrar</button>
+          <div class="field">
+            <label for="nName">Nome completo</label>
+            <input id="nName" type="text" placeholder="Ex: Maria Fernanda" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="nId">Login (sem espaços ou acentos)</label>
+            <input id="nId" type="text" placeholder="Ex: mariafernanda" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="nPass">Senha inicial</label>
+            <input id="nPass" type="text" placeholder="Ex: mariafernanda123" autocomplete="off">
+          </div>
+          <div id="nErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
+          <button type="button" class="btn btn-navy" onclick="addUser()" style="margin-top:.5rem">Cadastrar</button>
         </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>
 
-<!-- ═════════════════════════ MODAL AJUSTE ═════════════════════════ -->
-<div id="adjModal" class="overlay hidden">
+<!-- ═══════════════════════ MODAL AJUSTE ═══════════════════════ -->
+<div id="adjModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="adjModalTitle">
   <div class="modal">
-    <div class="modal-title">✎ Solicitar Ajuste de Ponto</div>
+    <h2 class="modal-title" id="adjModalTitle">✎ Solicitar Ajuste de Ponto</h2>
     <div class="field">
-      <label>Tipo de registro</label>
+      <label for="adjType">Tipo de registro</label>
       <select id="adjType">
         <option value="in">Entrada</option>
         <option value="out">Saída</option>
       </select>
     </div>
-    <div class="field"><label>Data correta</label><input id="adjDate" type="date"></div>
-    <div class="field"><label>Horário correto</label><input id="adjTime" type="time"></div>
-    <div class="field"><label>Justificativa</label><textarea id="adjJust" placeholder="Descreva o motivo do ajuste..."></textarea></div>
-    <div id="adjErr" class="error-msg hidden"></div>
+    <div class="field">
+      <label for="adjDate">Data correta</label>
+      <input id="adjDate" type="date" aria-required="true">
+    </div>
+    <div class="field">
+      <label for="adjTime">Horário correto</label>
+      <input id="adjTime" type="time" aria-required="true">
+    </div>
+    <div class="field">
+      <label for="adjJust">Justificativa</label>
+      <textarea id="adjJust" placeholder="Descreva o motivo do ajuste..." aria-required="true"></textarea>
+    </div>
+    <div id="adjErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeAdjModal()">Cancelar</button>
-      <button class="btn btn-gold"  onclick="submitAdj()">Enviar Solicitação</button>
+      <button type="button" class="btn btn-ghost" onclick="closeAdjModal()">Cancelar</button>
+      <button type="button" class="btn btn-gold"  onclick="submitAdj()">Enviar Solicitação</button>
     </div>
   </div>
 </div>
 
-<!-- ═════════════════════════ MODAL CONFIRM ═════════════════════════ -->
-<div id="confirmModal" class="overlay hidden">
+<!-- ═══════════════════════ MODAL CONFIRM ═══════════════════════ -->
+<div id="confirmModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
   <div class="modal">
-    <div class="modal-title" id="cfTitle">Confirmar</div>
+    <h2 class="modal-title" id="cfTitle">Confirmar</h2>
     <div id="cfBody" style="font-size:.93rem;color:var(--gray-700)"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeCf()">Cancelar</button>
-      <button class="btn btn-red" id="cfBtn">Confirmar</button>
+      <button type="button" class="btn btn-ghost" onclick="closeCf()">Cancelar</button>
+      <button type="button" class="btn btn-red" id="cfBtn">Confirmar</button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast"></div>
+<!-- ✅ FIX 8: aria-live no toast para leitores de tela -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script>
-// ─────────────── STORAGE KEYS ───────────────
-const SK = { U:'mmadv_ponto_users', R:'mmadv_ponto_records', A:'mmadv_ponto_adjs' };
+'use strict';
 
-const getU  = () => JSON.parse(localStorage.getItem(SK.U)||'[]');
-const saveU = v => localStorage.setItem(SK.U, JSON.stringify(v));
-const getR  = () => JSON.parse(localStorage.getItem(SK.R)||'[]');
-const saveR = v => localStorage.setItem(SK.R, JSON.stringify(v));
-const getA  = () => JSON.parse(localStorage.getItem(SK.A)||'[]');
-const saveA = v => localStorage.setItem(SK.A, JSON.stringify(v));
-const uid   = () => Date.now().toString(36)+Math.random().toString(36).slice(2);
+// ─────────────── STORAGE ───────────────
+const SK = { U: 'mmadv_ponto_users', R: 'mmadv_ponto_records', A: 'mmadv_ponto_adjs' };
+const getU  = () => JSON.parse(localStorage.getItem(SK.U) || '[]');
+const saveU = v  => localStorage.setItem(SK.U, JSON.stringify(v));
+const getR  = () => JSON.parse(localStorage.getItem(SK.R) || '[]');
+const saveR = v  => localStorage.setItem(SK.R, JSON.stringify(v));
+const getA  = () => JSON.parse(localStorage.getItem(SK.A) || '[]');
+const saveA = v  => localStorage.setItem(SK.A, JSON.stringify(v));
+const uid   = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-// ─────────────── BOOT / SEED ───────────────
+// ─────────────── DADOS INICIAIS ───────────────
 function boot() {
   if (getU().length === 0) {
     saveU([
-      // ──────────────────────────────────────────────────────
-      // COLABORADORAS: login = nome, senha = nome + "123"
-      // ADMIN: login = "admin"  |  senha = "mmadv@admin"
-      // Para redefinir senha: painel Admin → Colaboradores → Redefinir senha
-      // ──────────────────────────────────────────────────────
-      { id:'izabel',  name:'Izabel',          pass:'izabel123',   role:'employee' },
-      { id:'kelly',   name:'Kelly',           pass:'kelly123',    role:'employee' },
-      // Espaço reservado — adicione novos colaboradores pelo painel Admin:
-      // { id:'nome',    name:'Nome Completo',   pass:'nome123',     role:'employee' },
-      { id:'admin',   name:'Administrador',   pass:'mmadv@admin', role:'admin'    },
+      // ───────────────────────────────────────────────────────────
+      // COLABORADORAS  │ login = nome  │ senha = nome + "123"
+      // ADMINISTRADOR  │ login = admin │ senha = mmadv@admin
+      // Para alterar: painel Admin → Colaboradores → Redefinir senha
+      // ───────────────────────────────────────────────────────────
+      { id: 'izabel', name: 'Izabel',        pass: 'izabel123',   role: 'employee' },
+      { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee' },
+      // Espaço reservado — adicione novos colaboradores pelo painel
+      { id: 'admin',  name: 'Administrador',  pass: 'mmadv@admin', role: 'admin'    },
     ]);
   }
 }
 
-// ─────────────── STATE ───────────────
-let CU = null;  // current user
-let CT = 'overview';
+// ─────────────── ESTADO ───────────────
+let CU = null;
 
-// ─────────────── HELPERS ───────────────
-const p2 = n => String(n).padStart(2,'0');
+// ─────────────── UTILITÁRIOS ───────────────
+const $    = id  => document.getElementById(id);
+const show = id  => $(id)?.classList.remove('hidden');
+const hide = id  => $(id)?.classList.add('hidden');
+const p2   = n   => String(n).padStart(2, '0');
+const escHtml = s => {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+};
+
 function fmtDT(iso) {
   const d = new Date(iso);
   return `${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
-function fmtDate(iso) {
-  const d = new Date(iso);
-  return `${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()}`;
-}
-const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; };
-const monthStr = () => { const d=new Date(); return `${d.getFullYear()}-${p2(d.getMonth()+1)}`; };
-const DAYS   = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
-const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-function fmtFullDate(d) { return `${DAYS[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`; }
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; };
+const monthStr = () => { const d = new Date(); return `${d.getFullYear()}-${p2(d.getMonth()+1)}`; };
 
-// ─────────────── CLOCK ───────────────
+const DIAS   = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MESES  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const fmtFull = d => `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+
+// ─────────────── TOAST ───────────────
+let _tt;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(_tt);
+  _tt = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+}
+
+// ─────────────── RELÓGIO ───────────────
 function tick() {
-  const n = new Date();
-  const de = document.getElementById('empDate');
-  const te = document.getElementById('empTime');
-  if (de) de.textContent = fmtFullDate(n);
+  const n  = new Date();
+  const de = $('empDate');
+  const te = $('empTime');
+  if (de) de.textContent = fmtFull(n);
   if (te) te.textContent = `${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`;
 }
-setInterval(tick, 1000); tick();
+setInterval(tick, 1000);
+tick();
 
-// ─────────────── AUTH ───────────────
+// ─────────────── LOGIN / LOGOUT ───────────────
 function doLogin() {
-  const id   = $('lUser').value.trim().toLowerCase();
-  const pass = $('lPass').value;
-  const u = getU().find(x => x.id===id && x.pass===pass);
-  if (!u) { show('lErr'); return; }
-  hide('lErr'); CU = u;
+  const id   = ($('lUser').value || '').trim().toLowerCase();
+  const pass = $('lPass').value || '';
+  const u = getU().find(x => x.id === id && x.pass === pass);
+  const errEl = $('lErr');
+
+  if (!u) {
+    errEl.textContent = 'Usuário ou senha incorretos.';
+    show('lErr');
+    $('lPass').value = '';
+    $('lPass').focus();
+    return;
+  }
+
+  hide('lErr');
+  CU = u;
   hide('loginPage');
-  if (u.role==='admin') { show('adminApp'); renderAdminView(); }
-  else { show('empApp'); $('empPill').textContent = u.name; initEmpHistory(); renderEmpView(); }
+
+  if (u.role === 'admin') {
+    show('adminApp');
+    renderAdminView();
+  } else {
+    show('empApp');
+    $('empPill').textContent = u.name;
+    const mEl = $('empHistMonth');
+    if (mEl && !mEl.value) mEl.value = monthStr();
+    renderEmpView();
+  }
 }
 
 function doLogout() {
   CU = null;
-  ['empApp','adminApp'].forEach(hide);
-  $('lUser').value=''; $('lPass').value='';
+  hide('empApp');
+  hide('adminApp');
+  $('lUser').value = '';
+  $('lPass').value = '';
+  hide('lErr');
   show('loginPage');
+  $('lUser').focus();
 }
 
-$('lPass').onkeydown = e => { if(e.key==='Enter') doLogin(); };
-$('lUser').onkeydown = e => { if(e.key==='Enter') doLogin(); };
+// Enter no login
+$('lPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('lUser').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-// ─────────────── PUNCH ───────────────
+// ─────────────── PONTO ───────────────
 function punch(type) {
-  const rec = { id:uid(), userId:CU.id, userName:CU.name, type, datetime:new Date().toISOString(), manual:false };
+  const rec = {
+    id: uid(), userId: CU.id, userName: CU.name,
+    type, datetime: new Date().toISOString(), manual: false
+  };
   const rs = getR(); rs.push(rec); saveR(rs);
-  toast(type==='in' ? '✅ Entrada registrada com sucesso!' : '✅ Saída registrada com sucesso!');
+  toast(type === 'in' ? '✅ Entrada registrada com sucesso!' : '✅ Saída registrada com sucesso!');
   renderEmpView();
 }
 
-// ─────────────── EMPLOYEE VIEW ───────────────
-function initEmpHistory() {
-  const el = $('empHistMonth');
-  if (el && !el.value) el.value = monthStr();
-}
-
+// ─────────────── VISÃO DO COLABORADOR ───────────────
 function renderEmpView() {
   if (!CU) return;
-  renderToday(); renderMyAdj(); renderHist();
+  renderToday();
+  renderMyAdj();
+  renderHist();
+}
+
+function recHtml(r) {
+  return `<div class="rec">
+    <div class="dot ${r.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
+    <div class="rec-info">
+      <div class="rec-label">${r.type === 'in' ? '⬆ Entrada' : '⬇ Saída'}</div>
+      <div class="rec-time">${fmtDT(r.datetime)}</div>
+    </div>
+    ${r.manual ? '<span class="badge badge-adj">Ajustado</span>' : ''}
+  </div>`;
 }
 
 function renderToday() {
   const today = todayStr();
-  const rs = getR().filter(r => r.userId===CU.id && r.datetime.startsWith(today));
-  const el = $('todayList');
-  el.innerHTML = rs.length ? rs.map(recHtml).join('') : '<div class="empty">Nenhum registro hoje.</div>';
+  const rs = getR().filter(r => r.userId === CU.id && r.datetime.startsWith(today));
+  $('todayList').innerHTML = rs.length
+    ? rs.map(recHtml).join('')
+    : '<div class="empty">Nenhum registro hoje.</div>';
 }
 
 function renderMyAdj() {
-  const as = getA().filter(a => a.userId===CU.id).reverse();
-  const el = $('myAdjList');
-  if (!as.length) { el.innerHTML='<div class="empty">Nenhuma solicitação.</div>'; return; }
-  const map = { pending:['badge-pending','⏳ Aguardando'], approved:['badge-approved','✅ Aprovado'], rejected:['badge-rejected','❌ Recusado'] };
-  el.innerHTML = as.map(a => {
-    const [cls,lbl] = map[a.status]||['',''];
+  const as = getA().filter(a => a.userId === CU.id).reverse();
+  if (!as.length) { $('myAdjList').innerHTML = '<div class="empty">Nenhuma solicitação.</div>'; return; }
+  const map = {
+    pending:  ['badge-pending',  '⏳ Aguardando'],
+    approved: ['badge-approved', '✅ Aprovado'],
+    rejected: ['badge-rejected', '❌ Recusado'],
+  };
+  $('myAdjList').innerHTML = as.map(a => {
+    const [cls, lbl] = map[a.status] || ['', ''];
     return `<div class="rec">
-      <div class="dot ${a.type==='in'?'dot-in':'dot-out'}"></div>
+      <div class="dot ${a.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
       <div class="rec-info">
-        <div class="rec-label">${a.type==='in'?'Entrada':'Saída'} &mdash; ${a.reqDate} às ${a.reqTime}</div>
+        <div class="rec-label">${a.type === 'in' ? 'Entrada' : 'Saída'} — ${a.reqDate} às ${a.reqTime}</div>
         <div class="rec-time"><em>"${escHtml(a.just)}"</em></div>
-        ${a.note ? `<div class="rec-time" style="color:var(--red)">Resposta: ${escHtml(a.note)}</div>`:''}
+        ${a.note ? `<div class="rec-time" style="color:var(--red)">Resposta: ${escHtml(a.note)}</div>` : ''}
       </div>
-      <span class="badge ${cls}">${lbl}</span>
+      <span class="badge ${cls}" aria-label="${lbl}">${lbl}</span>
     </div>`;
   }).join('');
 }
 
 function renderHist() {
-  const m = ($('empHistMonth')||{}).value || monthStr();
-  const rs = getR().filter(r => r.userId===CU.id && r.datetime.startsWith(m)).reverse();
-  $('histList').innerHTML = rs.length ? rs.map(recHtml).join('') : '<div class="empty">Nenhum registro neste período.</div>';
+  const m  = ($('empHistMonth') || {}).value || monthStr();
+  const rs = getR().filter(r => r.userId === CU.id && r.datetime.startsWith(m)).reverse();
+  $('histList').innerHTML = rs.length
+    ? rs.map(recHtml).join('')
+    : '<div class="empty">Nenhum registro neste período.</div>';
 }
 
-function recHtml(r) {
-  return `<div class="rec">
-    <div class="dot ${r.type==='in'?'dot-in':'dot-out'}"></div>
-    <div class="rec-info">
-      <div class="rec-label">${r.type==='in'?'⬆ Entrada':'⬇ Saída'}</div>
-      <div class="rec-time">${fmtDT(r.datetime)}</div>
-    </div>
-    ${r.manual?'<span class="badge badge-adj">Ajustado</span>':''}
-  </div>`;
-}
-
-// ─────────────── ADJ MODAL ───────────────
+// ─────────────── MODAL AJUSTE ───────────────
 function openAdjModal() {
   const now = new Date();
   $('adjDate').value = `${now.getFullYear()}-${p2(now.getMonth()+1)}-${p2(now.getDate())}`;
@@ -556,6 +641,7 @@ function openAdjModal() {
   $('adjJust').value = '';
   hide('adjErr');
   show('adjModal');
+  setTimeout(() => $('adjType').focus(), 50);
 }
 function closeAdjModal() { hide('adjModal'); }
 
@@ -563,13 +649,23 @@ function submitAdj() {
   const type = $('adjType').value;
   const date = $('adjDate').value;
   const time = $('adjTime').value;
-  const just = $('adjJust').value.trim();
-  if (!date||!time||!just) { $('adjErr').textContent='Preencha todos os campos.'; show('adjErr'); return; }
+  const just = ($('adjJust').value || '').trim();
+  const errEl = $('adjErr');
+
+  if (!date || !time || !just) {
+    errEl.textContent = 'Preencha todos os campos obrigatórios.';
+    show('adjErr');
+    return;
+  }
+
   const a = {
     id: uid(), userId: CU.id, userName: CU.name,
-    type, reqDate: date.split('-').reverse().join('/'), reqTime: time,
-    reqISO: new Date(`${date}T${time}:00`).toISOString(),
-    just, status:'pending', note:'', createdAt: new Date().toISOString()
+    type,
+    reqDate: date.split('-').reverse().join('/'),
+    reqTime: time,
+    reqISO:  new Date(`${date}T${time}:00`).toISOString(),
+    just, status: 'pending', note: '',
+    createdAt: new Date().toISOString(),
   };
   const as = getA(); as.push(a); saveA(as);
   closeAdjModal();
@@ -577,7 +673,7 @@ function submitAdj() {
   renderMyAdj();
 }
 
-// ─────────────── ADMIN VIEW ───────────────
+// ─────────────── ADMIN — VISÃO GERAL ───────────────
 function renderAdminView() {
   populateFilt();
   updateAdjBadge();
@@ -588,180 +684,252 @@ function renderAdminView() {
 }
 
 function updateAdjBadge() {
-  const n = getA().filter(a=>a.status==='pending').length;
-  n>0 ? show('adjBadge') : hide('adjBadge');
+  const n = getA().filter(a => a.status === 'pending').length;
+  n > 0 ? show('adjBadge') : hide('adjBadge');
+  const tabBtn = $('tAdjustments');
+  if (tabBtn) tabBtn.setAttribute('aria-label', `Ajustes${n > 0 ? ` (${n} pendentes)` : ''}`);
 }
 
+// ✅ FIX 9: aria-selected atualizado ao trocar de aba
 function switchTab(t) {
-  CT=t;
-  const tabs = {overview:'tOverview',adjustments:'tAdjustments',records:'tRecords',users:'tUsers'};
-  const pans = {overview:'pOverview',adjustments:'pAdjustments',records:'pRecords',users:'pUsers'};
+  const tabs = { overview: 'tOverview', adjustments: 'tAdjustments', records: 'tRecords', users: 'tUsers' };
+  const pans = { overview: 'pOverview', adjustments: 'pAdjustments', records: 'pRecords', users: 'pUsers' };
   Object.keys(tabs).forEach(k => {
-    $(tabs[k]).classList.toggle('active', k===t);
-    $(pans[k]).classList.toggle('hidden', k!==t);
+    const tabEl = $(tabs[k]);
+    const panEl = $(pans[k]);
+    const active = k === t;
+    tabEl?.classList.toggle('active', active);
+    tabEl?.setAttribute('aria-selected', active ? 'true' : 'false');
+    panEl?.classList.toggle('hidden', !active);
   });
-  if(t==='records')     renderAdminRecs();
-  if(t==='adjustments') renderAdminAdj();
-  if(t==='users')       renderUsersList();
+  if (t === 'records')     renderAdminRecs();
+  if (t === 'adjustments') renderAdminAdj();
+  if (t === 'users')       renderUsersList();
 }
 
 function renderAdminOverview() {
-  const users = getU().filter(u=>u.role==='employee');
+  const users = getU().filter(u => u.role === 'employee');
   const today = todayStr();
   const rs = getR();
-  // Summary cards
+
   $('adminSummary').innerHTML = users.map(u => {
-    const tr   = rs.filter(r=>r.userId===u.id&&r.datetime.startsWith(today));
-    const inR  = tr.filter(r=>r.type==='in').pop();
-    const outR = tr.filter(r=>r.type==='out').pop();
+    const tr   = rs.filter(r => r.userId === u.id && r.datetime.startsWith(today));
+    const inR  = tr.filter(r => r.type === 'in').pop();
+    const outR = tr.filter(r => r.type === 'out').pop();
     const status = !inR
       ? '<span style="color:var(--gray-500)">⚪ Não registrou entrada</span>'
       : outR
         ? `<span style="color:var(--red)">🔴 Saiu às ${fmtDT(outR.datetime).split(' ')[1]}</span>`
         : `<span style="color:var(--green)">🟢 Presente desde ${fmtDT(inR.datetime).split(' ')[1]}</span>`;
-    return `<div class="summary-card"><div class="sc-name">${u.name}</div><div class="sc-status">${status}</div><div class="sc-status" style="margin-top:3px">${tr.length} registro(s) hoje</div></div>`;
+    return `<div class="summary-card">
+      <div class="sc-name">${escHtml(u.name)}</div>
+      <div class="sc-status">${status}</div>
+      <div class="sc-status" style="margin-top:3px">${tr.length} registro(s) hoje</div>
+    </div>`;
   }).join('');
 
-  // Recent records
   const rec = rs.slice(-12).reverse();
   $('recentRecs').innerHTML = rec.length
-    ? rec.map(r=>`<div class="rec"><div class="dot ${r.type==='in'?'dot-in':'dot-out'}"></div><div class="rec-info"><div class="rec-label">${r.userName} &mdash; ${r.type==='in'?'⬆ Entrada':'⬇ Saída'}</div><div class="rec-time">${fmtDT(r.datetime)}</div></div>${r.manual?'<span class="badge badge-adj">Ajustado</span>':''}</div>`).join('')
+    ? rec.map(r => `<div class="rec">
+        <div class="dot ${r.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
+        <div class="rec-info">
+          <div class="rec-label">${escHtml(r.userName)} — ${r.type === 'in' ? '⬆ Entrada' : '⬇ Saída'}</div>
+          <div class="rec-time">${fmtDT(r.datetime)}</div>
+        </div>
+        ${r.manual ? '<span class="badge badge-adj">Ajustado</span>' : ''}
+      </div>`).join('')
     : '<div class="empty">Nenhum registro ainda.</div>';
 }
 
+// ─────────────── ADMIN — AJUSTES ───────────────
 function renderAdminAdj() {
   const as  = getA();
-  const pen = as.filter(a=>a.status==='pending').reverse();
-  const pro = as.filter(a=>a.status!=='pending').reverse();
+  const pen = as.filter(a => a.status === 'pending').reverse();
+  const pro = as.filter(a => a.status !== 'pending').reverse();
 
   $('pendList').innerHTML = pen.length
     ? pen.map(adjItemHtml).join('')
     : '<div class="empty">Nenhuma solicitação pendente. ✅</div>';
 
-  const map = { approved:['badge-approved','✅ Aprovado'], rejected:['badge-rejected','❌ Recusado'] };
+  const statusMap = {
+    approved: ['badge-approved', '✅ Aprovado'],
+    rejected: ['badge-rejected', '❌ Recusado'],
+  };
   $('procList').innerHTML = pro.length
-    ? pro.map(a=>{
-        const [cls,lbl]=map[a.status]||['',''];
-        const bcolor = a.status==='approved'?'var(--green)':'var(--red)';
-        return `<div class="adj-item" style="border-left-color:${bcolor}">
-          <div class="adj-head"><div><div class="adj-who">${a.userName}</div><div class="adj-det">${a.type==='in'?'Entrada':'Saída'} &mdash; ${a.reqDate} às ${a.reqTime}</div></div><span class="badge ${cls}">${lbl}</span></div>
+    ? pro.map(a => {
+        const [cls, lbl] = statusMap[a.status] || ['', ''];
+        const bc = a.status === 'approved' ? 'var(--green)' : 'var(--red)';
+        return `<div class="adj-item" style="border-left-color:${bc}">
+          <div class="adj-head">
+            <div>
+              <div class="adj-who">${escHtml(a.userName)}</div>
+              <div class="adj-det">${a.type === 'in' ? 'Entrada' : 'Saída'} — ${a.reqDate} às ${a.reqTime}</div>
+            </div>
+            <span class="badge ${cls}">${lbl}</span>
+          </div>
           <div class="adj-just">"${escHtml(a.just)}"</div>
-          ${a.note?`<div style="font-size:.8rem;color:var(--red);margin-top:.25rem">Motivo da recusa: ${escHtml(a.note)}</div>`:''}
+          ${a.note ? `<div style="font-size:.8rem;color:var(--red);margin-top:.25rem">Motivo da recusa: ${escHtml(a.note)}</div>` : ''}
         </div>`;
       }).join('')
     : '<div class="empty">Nenhum ajuste processado ainda.</div>';
 }
 
+// ✅ FIX 10: type="button" nos botões gerados dinamicamente
 function adjItemHtml(a) {
   return `<div class="adj-item">
     <div class="adj-head">
-      <div><div class="adj-who">${a.userName}</div><div class="adj-det">${a.type==='in'?'Entrada':'Saída'} &mdash; ${a.reqDate} às ${a.reqTime}</div></div>
+      <div>
+        <div class="adj-who">${escHtml(a.userName)}</div>
+        <div class="adj-det">${a.type === 'in' ? 'Entrada' : 'Saída'} — ${a.reqDate} às ${a.reqTime}</div>
+      </div>
       <span class="badge badge-pending">⏳ Pendente</span>
     </div>
     <div class="adj-just">"${escHtml(a.just)}"</div>
     <div style="font-size:.78rem;color:var(--gray-500)">Solicitado em ${fmtDT(a.createdAt)}</div>
     <div class="adj-btns">
-      <button class="btn btn-green btn-sm" onclick="processAdj('${a.id}','approved')">✅ Aprovar</button>
-      <button class="btn btn-red btn-sm"   onclick="promptReject('${a.id}')">❌ Recusar</button>
+      <button type="button" class="btn btn-green btn-sm" onclick="processAdj('${a.id}','approved')" aria-label="Aprovar ajuste de ${escHtml(a.userName)}">✅ Aprovar</button>
+      <button type="button" class="btn btn-red btn-sm"   onclick="promptReject('${a.id}')"           aria-label="Recusar ajuste de ${escHtml(a.userName)}">❌ Recusar</button>
     </div>
   </div>`;
 }
 
-function processAdj(id, status, note='') {
-  const as = getA(); const i = as.findIndex(a=>a.id===id); if(i<0) return;
-  as[i].status=status; as[i].note=note;
-  if (status==='approved') {
-    const a=as[i], rs=getR();
-    rs.push({ id:uid(), userId:a.userId, userName:a.userName, type:a.type, datetime:a.reqISO, manual:true, adjRef:id });
+function processAdj(id, status, note = '') {
+  const as = getA();
+  const i  = as.findIndex(a => a.id === id);
+  if (i < 0) return;
+  as[i].status = status;
+  as[i].note   = note;
+  if (status === 'approved') {
+    const a = as[i];
+    const rs = getR();
+    rs.push({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
     saveR(rs);
   }
-  saveA(as); updateAdjBadge(); renderAdminAdj(); renderAdminOverview();
-  toast(status==='approved'?'✅ Ajuste aprovado e lançado nos registros.':'❌ Ajuste recusado.');
+  saveA(as);
+  updateAdjBadge();
+  renderAdminAdj();
+  renderAdminOverview();
+  toast(status === 'approved' ? '✅ Ajuste aprovado e lançado nos registros.' : '❌ Ajuste recusado.');
 }
 
-let rejId=null;
+let rejId = null;
 function promptReject(id) {
-  rejId=id;
-  $('cfTitle').textContent='Recusar Ajuste';
-  $('cfBody').innerHTML=`<p style="margin-bottom:.75rem">Informe o motivo da recusa (opcional):</p><textarea id="rejNote" style="width:100%;padding:.6rem;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:.9rem;min-height:70px;resize:vertical" placeholder="Motivo da recusa..."></textarea>`;
-  $('cfBtn').textContent='Recusar';
-  $('cfBtn').onclick=()=>{ processAdj(rejId,'rejected',($('rejNote')||{}).value?.trim()||''); closeCf(); };
+  rejId = id;
+  $('cfTitle').textContent = 'Recusar Ajuste';
+  $('cfBody').innerHTML = `
+    <p style="margin-bottom:.75rem">Informe o motivo da recusa (opcional):</p>
+    <textarea id="rejNote" style="width:100%;padding:.6rem;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:.9rem;min-height:70px;resize:vertical" placeholder="Motivo da recusa..." aria-label="Motivo da recusa"></textarea>`;
+  const btn = $('cfBtn');
+  btn.textContent = 'Recusar';
+  btn.className   = 'btn btn-red';
+  btn.onclick     = () => {
+    const note = ($('rejNote') || {}).value?.trim() || '';
+    processAdj(rejId, 'rejected', note);
+    closeCf();
+  };
   show('confirmModal');
+  setTimeout(() => $('rejNote')?.focus(), 50);
 }
 function closeCf() { hide('confirmModal'); }
 
+// ─────────────── ADMIN — REGISTROS ───────────────
 function renderAdminRecs() {
-  const emp   = ($('fEmp')||{}).value||'';
-  const month = ($('fMonth')||{}).value||'';
+  const emp   = ($('fEmp')   || {}).value || '';
+  const month = ($('fMonth') || {}).value || '';
   let rs = getR();
-  if(emp)   rs=rs.filter(r=>r.userId===emp);
-  if(month) rs=rs.filter(r=>r.datetime.startsWith(month));
-  rs=rs.reverse();
+  if (emp)   rs = rs.filter(r => r.userId === emp);
+  if (month) rs = rs.filter(r => r.datetime.startsWith(month));
+  rs = rs.reverse();
   $('allRecs').innerHTML = rs.length
-    ? rs.map(r=>`<div class="rec"><div class="dot ${r.type==='in'?'dot-in':'dot-out'}"></div><div class="rec-info"><div class="rec-label">${r.userName} &mdash; ${r.type==='in'?'⬆ Entrada':'⬇ Saída'}</div><div class="rec-time">${fmtDT(r.datetime)}</div></div>${r.manual?'<span class="badge badge-adj">Ajustado</span>':''}</div>`).join('')
+    ? rs.map(r => `<div class="rec">
+        <div class="dot ${r.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
+        <div class="rec-info">
+          <div class="rec-label">${escHtml(r.userName)} — ${r.type === 'in' ? '⬆ Entrada' : '⬇ Saída'}</div>
+          <div class="rec-time">${fmtDT(r.datetime)}</div>
+        </div>
+        ${r.manual ? '<span class="badge badge-adj">Ajustado</span>' : ''}
+      </div>`).join('')
     : '<div class="empty">Nenhum registro encontrado com esses filtros.</div>';
 }
 
 function populateFilt() {
-  const sel=$('fEmp'); if(!sel) return;
-  const users=getU().filter(u=>u.role==='employee');
-  sel.innerHTML='<option value="">Todos</option>'+users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
-  const mEl=$('fMonth'); if(mEl&&!mEl.value) mEl.value=monthStr();
+  const sel  = $('fEmp');   if (!sel)  return;
+  const mEl  = $('fMonth'); if (!mEl)  return;
+  const users = getU().filter(u => u.role === 'employee');
+  sel.innerHTML = '<option value="">Todos</option>' + users.map(u => `<option value="${u.id}">${escHtml(u.name)}</option>`).join('');
+  if (!mEl.value) mEl.value = monthStr();
 }
 
+// ─────────────── ADMIN — COLABORADORES ───────────────
 function renderUsersList() {
-  const users=getU().filter(u=>u.role==='employee');
-  $('usersList').innerHTML = users.map(u=>`
+  const users = getU().filter(u => u.role === 'employee');
+  $('usersList').innerHTML = users.map(u => `
     <div class="user-item">
-      <div class="avatar">${u.name[0].toUpperCase()}</div>
-      <div style="flex:1"><div class="u-name">${u.name}</div><div class="u-login">Login: <strong>${u.id}</strong> · Senha: <strong>${u.pass}</strong></div></div>
-      <button class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}')">🔑 Redefinir senha</button>
+      <div class="avatar" aria-hidden="true">${u.name[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="u-name">${escHtml(u.name)}</div>
+        <div class="u-login">Login: <strong>${u.id}</strong> &nbsp;·&nbsp; Senha: <strong>${u.pass}</strong></div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}')" aria-label="Redefinir senha de ${escHtml(u.name)}">🔑 Redefinir senha</button>
     </div>`).join('');
 }
 
 function addUser() {
-  const name=($('nName').value||'').trim();
-  const id  =($('nId').value||'').trim().toLowerCase().replace(/\s+/g,'');
-  const pass=($('nPass').value||'').trim();
-  const err=$('nErr');
-  if(!name||!id||!pass){ err.textContent='Preencha todos os campos.'; show('nErr'); return; }
-  const us=getU();
-  if(us.find(u=>u.id===id)){ err.textContent=`O login "${id}" já existe.`; show('nErr'); return; }
+  const name  = ($('nName').value || '').trim();
+  const id    = ($('nId').value   || '').trim().toLowerCase().replace(/[\s\W]+/g, '');
+  const pass  = ($('nPass').value || '').trim();
+  const errEl = $('nErr');
+
+  if (!name || !id || !pass) { errEl.textContent = 'Preencha todos os campos.'; show('nErr'); return; }
+  const us = getU();
+  if (us.find(u => u.id === id)) { errEl.textContent = `O login "${id}" já existe.`; show('nErr'); return; }
+
   hide('nErr');
-  us.push({ id, name, pass, role:'employee' });
-  saveU(us); $('nName').value=''; $('nId').value=''; $('nPass').value='';
-  populateFilt(); renderUsersList();
+  us.push({ id, name, pass, role: 'employee' });
+  saveU(us);
+  $('nName').value = '';
+  $('nId').value   = '';
+  $('nPass').value = '';
+  populateFilt();
+  renderUsersList();
   toast(`✅ ${name} cadastrado(a) com sucesso!`);
 }
 
 function resetPass(userId) {
-  $('cfTitle').textContent='Redefinir Senha';
-  $('cfBody').innerHTML=`<p style="margin-bottom:.75rem">Nova senha para <strong>${getU().find(u=>u.id===userId)?.name||userId}</strong>:</p><input id="npw" type="text" style="width:100%;padding:.6rem;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:.9rem" placeholder="Nova senha...">`;
-  $('cfBtn').textContent='Salvar';
-  $('cfBtn').className='btn btn-navy';
-  $('cfBtn').onclick=()=>{
-    const np=($('npw')||{}).value?.trim();
-    if(!np){ return; }
-    const us=getU(); const i=us.findIndex(u=>u.id===userId); if(i<0){ closeCf(); return; }
-    us[i].pass=np; saveU(us); closeCf(); renderUsersList();
+  const user = getU().find(u => u.id === userId);
+  if (!user) return;
+  $('cfTitle').textContent = 'Redefinir Senha';
+  $('cfBody').innerHTML = `
+    <p style="margin-bottom:.75rem">Nova senha para <strong>${escHtml(user.name)}</strong>:</p>
+    <input id="npw" type="text" style="width:100%;padding:.6rem;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:.9rem" placeholder="Nova senha..." aria-label="Nova senha" autocomplete="off">`;
+  const btn = $('cfBtn');
+  btn.textContent = 'Salvar';
+  btn.className   = 'btn btn-navy';
+  btn.onclick     = () => {
+    const np = ($('npw') || {}).value?.trim();
+    if (!np) { toast('⚠ Digite uma senha.'); return; }
+    const us = getU();
+    const i  = us.findIndex(u => u.id === userId);
+    if (i < 0) { closeCf(); return; }
+    us[i].pass = np;
+    saveU(us);
+    closeCf();
+    renderUsersList();
     toast('🔑 Senha redefinida com sucesso!');
   };
   show('confirmModal');
+  setTimeout(() => $('npw')?.focus(), 50);
 }
 
-// ─────────────── UTILS ───────────────
-function $(id){ return document.getElementById(id); }
-function show(id){ $(id)?.classList.remove('hidden'); }
-function hide(id){ $(id)?.classList.add('hidden'); }
-function escHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+// ─────────────── FECHAR MODAL COM ESC ───────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!$('adjModal').classList.contains('hidden'))     closeAdjModal();
+    if (!$('confirmModal').classList.contains('hidden')) closeCf();
+  }
+});
 
-let _tt;
-function toast(msg) {
-  const el=$('toast'); el.textContent=msg; el.style.opacity='1';
-  clearTimeout(_tt); _tt=setTimeout(()=>el.style.opacity='0', 3000);
-}
-
-// ─────────────── INIT ───────────────
+// ─────────────── INICIALIZAÇÃO ───────────────
 boot();
 </script>
 </body>
