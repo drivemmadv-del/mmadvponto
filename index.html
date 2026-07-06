@@ -11,6 +11,11 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231F3864'/%3E%3Ctext x='16' y='23' font-family='Arial%2Csans-serif' font-size='13' font-weight='900' fill='%23C5A24A' text-anchor='middle'%3EMM%3C/text%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231F3864'/%3E%3Ctext x='16' y='23' font-family='Arial%2Csans-serif' font-size='13' font-weight='900' fill='%23C5A24A' text-anchor='middle'%3EMM%3C/text%3E%3C/svg%3E">
 
+  <!-- Firebase (mesmo projeto do Agendamento — banco compartilhado entre dispositivos) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+
   <style>
     :root {
       --navy:       #1F3864;
@@ -242,6 +247,28 @@
       .tabs { flex-direction: column; }
       .tab { text-align: left; }
     }
+
+    /* ─────────────── BANCO DE HORAS ─────────────── */
+    .bh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .bh-card { background: var(--white); border-radius: 12px; padding: 1rem 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .bh-card .bh-label { font-size: .72rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .35rem; }
+    .bh-card .bh-value { font-size: 1.5rem; font-weight: 800; }
+    .bh-pos { color: var(--green); } .bh-neg { color: var(--red); } .bh-neu { color: var(--navy); }
+
+    .bh-table-wrap { overflow-x: auto; }
+    table.bh-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    table.bh-table th { text-align: left; padding: .6rem .8rem; background: var(--gray-100); color: var(--gray-500); font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+    table.bh-table td { padding: .55rem .8rem; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+    table.bh-table tr.bh-off td { color: var(--gray-300); }
+    table.bh-table tr.bh-today { background: var(--gray-100); }
+    .bh-punches { font-size: .74rem; color: var(--gray-500); white-space: normal; }
+    .bh-incomplete { color: var(--amber); font-weight: 700; }
+
+    .shift-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
+    .shift-row label.dayname { width: 96px; font-size: .82rem; font-weight: 700; color: var(--gray-700); flex-shrink: 0; }
+    .shift-row input[type="time"] { padding: .35rem .5rem; border: 1.5px solid var(--gray-200); border-radius: 7px; font-size: .82rem; font-family: inherit; }
+    .shift-row .to { font-size: .78rem; color: var(--gray-500); }
+    .shift-row input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -268,7 +295,7 @@
     <!-- ✅ FIX 5: role="alert" para leitores de tela anunciarem o erro -->
     <div id="lErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
     <!-- ✅ FIX 6: type="button" em todos os botões -->
-    <button type="button" class="btn btn-navy btn-full" style="margin-top:1.1rem" onclick="doLogin()">Entrar</button>
+    <button type="button" id="loginBtn" class="btn btn-navy btn-full" style="margin-top:1.1rem" onclick="doLogin()" disabled>Conectando...</button>
   </div>
 </div>
 
@@ -296,6 +323,9 @@
       </div>
       <button type="button" class="btn-adj" onclick="openAdjModal()" aria-label="Solicitar ajuste de ponto">✎ Solicitar Ajuste</button>
     </div>
+
+    <div class="section-title">Meu banco de horas (semana atual)</div>
+    <div class="bh-grid" id="empBhSummary" aria-live="polite"></div>
 
     <div class="section-title">Registros de hoje</div>
     <div class="card" role="region" aria-label="Registros de hoje">
@@ -339,6 +369,7 @@
       <button type="button" class="tab active" id="tOverview"    role="tab" aria-selected="true"  aria-controls="pOverview"    onclick="switchTab('overview')">📊 Geral</button>
       <button type="button" class="tab"        id="tAdjustments" role="tab" aria-selected="false" aria-controls="pAdjustments" onclick="switchTab('adjustments')">🔄 Ajustes<span id="adjBadge" class="notif hidden" aria-label="Ajustes pendentes"></span></button>
       <button type="button" class="tab"        id="tRecords"     role="tab" aria-selected="false" aria-controls="pRecords"     onclick="switchTab('records')">📋 Registros</button>
+      <button type="button" class="tab"        id="tBanco"       role="tab" aria-selected="false" aria-controls="pBanco"       onclick="switchTab('banco')">🏦 Banco de Horas</button>
       <button type="button" class="tab"        id="tUsers"       role="tab" aria-selected="false" aria-controls="pUsers"       onclick="switchTab('users')">👥 Colaboradores</button>
     </div>
 
@@ -367,6 +398,31 @@
         <input type="month" id="fMonth" onchange="renderAdminRecs()" aria-label="Filtrar por mês">
       </div>
       <div class="card"><div id="allRecs" aria-live="polite"></div></div>
+    </div>
+
+    <!-- BANCO DE HORAS -->
+    <div id="pBanco" class="hidden" role="tabpanel" aria-labelledby="tBanco">
+      <div class="filter-bar" role="search" aria-label="Filtrar banco de horas">
+        <label for="bhEmp">Colaboradora:</label>
+        <select id="bhEmp" onchange="renderBanco()" aria-label="Selecionar colaboradora"></select>
+        <label for="bhMonth">Mês:</label>
+        <input type="month" id="bhMonth" onchange="renderBanco()" aria-label="Filtrar por mês">
+        <button type="button" class="btn btn-outline btn-sm" onclick="openScheduleModal(($('bhEmp')||{}).value)" style="margin-left:auto">⏱ Editar jornada</button>
+      </div>
+
+      <div class="bh-grid" id="bhSummary" aria-live="polite"></div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Detalhamento diário</span></div>
+        <div class="bh-table-wrap">
+          <table class="bh-table">
+            <thead><tr>
+              <th>Data</th><th>Dia</th><th>Prevista</th><th>Batidas</th><th>Trabalhada</th><th>Saldo do dia</th><th>Saldo acumulado</th>
+            </tr></thead>
+            <tbody id="bhTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- COLABORADORES -->
@@ -428,6 +484,25 @@
   </div>
 </div>
 
+<!-- ═══════════════════════ MODAL JORNADA ═══════════════════════ -->
+<div id="scheduleModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="schModalTitle">
+  <div class="modal" style="max-width:560px">
+    <h2 class="modal-title" id="schModalTitle">⏱ Jornada de trabalho</h2>
+    <p style="font-size:.85rem;color:var(--gray-500);margin-bottom:1rem">Defina os horários de entrada/saída de cada dia. O que passar do previsto entra como hora extra; o que faltar entra como débito no banco de horas.</p>
+    <div id="schDays"></div>
+    <div class="field" style="margin-top:.75rem">
+      <label for="schTarget">Meta semanal (horas)</label>
+      <input id="schTarget" type="number" min="0" step="0.5" style="max-width:120px">
+      <div style="font-size:.75rem;color:var(--gray-500);margin-top:.3rem">Soma atual da jornada configurada: <strong id="schSum">0h</strong></div>
+    </div>
+    <div id="schErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeScheduleModal()">Cancelar</button>
+      <button type="button" class="btn btn-navy" onclick="saveSchedule()">Salvar jornada</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ MODAL CONFIRM ═══════════════════════ -->
 <div id="confirmModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
   <div class="modal">
@@ -446,31 +521,127 @@
 <script>
 'use strict';
 
-// ─────────────── STORAGE ───────────────
-const SK = { U: 'mmadv_ponto_users', R: 'mmadv_ponto_records', A: 'mmadv_ponto_adjs' };
-const getU  = () => JSON.parse(localStorage.getItem(SK.U) || '[]');
-const saveU = v  => localStorage.setItem(SK.U, JSON.stringify(v));
-const getR  = () => JSON.parse(localStorage.getItem(SK.R) || '[]');
-const saveR = v  => localStorage.setItem(SK.R, JSON.stringify(v));
-const getA  = () => JSON.parse(localStorage.getItem(SK.A) || '[]');
-const saveA = v  => localStorage.setItem(SK.A, JSON.stringify(v));
-const uid   = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+// ─────────────── FIREBASE (banco compartilhado entre dispositivos) ───────────────
+// Mesmo projeto usado no Agendamento — reaproveita a autenticação anônima já ativada lá.
+const firebaseConfig = {
+  apiKey:            "AIzaSyDHBmGuYWptEN-UFawXtA3ROiT2NuOjC3E",
+  authDomain:        "agendamentommadv-32dae.firebaseapp.com",
+  projectId:         "agendamentommadv-32dae",
+  storageBucket:     "agendamentommadv-32dae.firebasestorage.app",
+  messagingSenderId: "32241097932",
+  appId:             "1:32241097932:web:3459dc7d8eba9d93a77669",
+};
+firebase.initializeApp(firebaseConfig);
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+// Coleções deste app (prefixo "ponto_" para não colidir com o Agendamento)
+const COL = { U: 'ponto_users', R: 'ponto_records', A: 'ponto_adjs' };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+// ─────────────── CACHE EM MEMÓRIA (populado em tempo real pelo Firestore) ───────────────
+let USERS = [], RECORDS = [], ADJS = [];
+let bootReady = false;
+const getU = () => USERS;
+const getR = () => RECORDS;
+const getA = () => ADJS;
+
+function defaultSchedule() {
+  const mkDay = (enabled, shifts) => ({ enabled, shifts });
+  return {
+    weeklyTarget: 44,
+    days: {
+      dom: mkDay(false, []),
+      seg: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      ter: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      qua: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      qui: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      sex: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      sab: mkDay(false, []),
+    },
+  };
+}
+
+// ─────────────── ESCRITAS (Firestore) ───────────────
+async function fsSetUser(userObj) {
+  await db.collection(COL.U).doc(userObj.id).set(userObj, { merge: true });
+}
+async function fsAddRecord(rec) {
+  await db.collection(COL.R).doc(rec.id).set(rec);
+}
+async function fsAddAdj(adj) {
+  await db.collection(COL.A).doc(adj.id).set(adj);
+}
+async function fsUpdateAdj(id, fields) {
+  await db.collection(COL.A).doc(id).update(fields);
+}
 
 // ─────────────── DADOS INICIAIS ───────────────
+async function seedIfEmpty() {
+  const snap = await db.collection(COL.U).limit(1).get();
+  if (!snap.empty) return;
+  // ───────────────────────────────────────────────────────────
+  // COLABORADORAS  │ login = nome  │ senha = nome + "123"
+  // ADMINISTRADOR  │ login = admin │ senha = mmadv@admin
+  // Para alterar: painel Admin → Colaboradores → Redefinir senha
+  // ───────────────────────────────────────────────────────────
+  const today = todayStr();
+  const seed = [
+    { id: 'izabel', name: 'Izabel',        pass: 'izabel123',   role: 'employee', startDate: today, schedule: defaultSchedule() },
+    { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee', startDate: today, schedule: (() => {
+        const s = defaultSchedule();
+        ['seg','ter','qua','qui','sex'].forEach(k => s.days[k].shifts = [['07:00','11:00'],['13:00','18:00']]);
+        return s;
+      })() },
+    { id: 'admin',  name: 'Administrador',  pass: 'mmadv@admin', role: 'admin'    },
+  ];
+  const batch = db.batch();
+  seed.forEach(u => batch.set(db.collection(COL.U).doc(u.id), u));
+  await batch.commit();
+}
+
+// ─────────────── BOOT: autenticação + listeners em tempo real ───────────────
 function boot() {
-  if (getU().length === 0) {
-    saveU([
-      // ───────────────────────────────────────────────────────────
-      // COLABORADORAS  │ login = nome  │ senha = nome + "123"
-      // ADMINISTRADOR  │ login = admin │ senha = mmadv@admin
-      // Para alterar: painel Admin → Colaboradores → Redefinir senha
-      // ───────────────────────────────────────────────────────────
-      { id: 'izabel', name: 'Izabel',        pass: 'izabel123',   role: 'employee' },
-      { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee' },
-      // Espaço reservado — adicione novos colaboradores pelo painel
-      { id: 'admin',  name: 'Administrador',  pass: 'mmadv@admin', role: 'admin'    },
-    ]);
+  auth.signInAnonymously().catch(err => console.error('Erro ao autenticar anonimamente:', err));
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user || bootReady) return;
+    bootReady = true;
+
+    try { await seedIfEmpty(); } catch (err) { console.error('Erro ao popular dados iniciais:', err); }
+
+    db.collection(COL.U).onSnapshot(
+      snap => {
+        USERS = snap.docs.map(d => d.data());
+        const btn = $('loginBtn');
+        if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+        onDataChanged();
+      },
+      err  => { console.error('Firebase error (users):', err); showConnError(); }
+    );
+    db.collection(COL.R).onSnapshot(
+      snap => { RECORDS = snap.docs.map(d => d.data()); onDataChanged(); },
+      err  => { console.error('Firebase error (records):', err); showConnError(); }
+    );
+    db.collection(COL.A).onSnapshot(
+      snap => { ADJS = snap.docs.map(d => d.data()); onDataChanged(); },
+      err  => { console.error('Firebase error (adjs):', err); showConnError(); }
+    );
+  });
+}
+
+function showConnError() {
+  const el = $('lErr');
+  if (el && $('loginPage') && !$('loginPage').classList.contains('hidden')) {
+    el.textContent = 'Não foi possível conectar ao banco. Verifique sua conexão e tente novamente.';
+    show('lErr');
   }
+}
+
+// Re-renderiza a tela atual sempre que os dados mudam (em tempo real, de qualquer dispositivo)
+function onDataChanged() {
+  if (!CU) return;
+  if (CU.role === 'admin') renderAdminView(); else renderEmpView();
 }
 
 // ─────────────── ESTADO ───────────────
@@ -521,6 +692,8 @@ tick();
 
 // ─────────────── LOGIN / LOGOUT ───────────────
 function doLogin() {
+  const btn = $('loginBtn');
+  if (btn && btn.disabled) return; // ainda conectando ao banco
   const id   = ($('lUser').value || '').trim().toLowerCase();
   const pass = $('lPass').value || '';
   const u = getU().find(x => x.id === id && x.pass === pass);
@@ -566,14 +739,18 @@ $('lPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); 
 $('lUser').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 // ─────────────── PONTO ───────────────
-function punch(type) {
+async function punch(type) {
   const rec = {
     id: uid(), userId: CU.id, userName: CU.name,
     type, datetime: new Date().toISOString(), manual: false
   };
-  const rs = getR(); rs.push(rec); saveR(rs);
-  toast(type === 'in' ? '✅ Entrada registrada com sucesso!' : '✅ Saída registrada com sucesso!');
-  renderEmpView();
+  try {
+    await fsAddRecord(rec);
+    toast(type === 'in' ? '✅ Entrada registrada com sucesso!' : '✅ Saída registrada com sucesso!');
+  } catch (err) {
+    console.error(err);
+    toast('⚠ Erro ao registrar. Verifique sua conexão.');
+  }
 }
 
 // ─────────────── VISÃO DO COLABORADOR ───────────────
@@ -582,6 +759,7 @@ function renderEmpView() {
   renderToday();
   renderMyAdj();
   renderHist();
+  renderEmpBh();
 }
 
 function recHtml(r) {
@@ -645,7 +823,7 @@ function openAdjModal() {
 }
 function closeAdjModal() { hide('adjModal'); }
 
-function submitAdj() {
+async function submitAdj() {
   const type = $('adjType').value;
   const date = $('adjDate').value;
   const time = $('adjTime').value;
@@ -667,20 +845,27 @@ function submitAdj() {
     just, status: 'pending', note: '',
     createdAt: new Date().toISOString(),
   };
-  const as = getA(); as.push(a); saveA(as);
-  closeAdjModal();
-  toast('Solicitação enviada! Aguarde aprovação do administrador.');
-  renderMyAdj();
+  try {
+    await fsAddAdj(a);
+    closeAdjModal();
+    toast('Solicitação enviada! Aguarde aprovação do administrador.');
+  } catch (err) {
+    console.error(err);
+    errEl.textContent = 'Erro ao enviar. Verifique sua conexão e tente novamente.';
+    show('adjErr');
+  }
 }
 
 // ─────────────── ADMIN — VISÃO GERAL ───────────────
 function renderAdminView() {
   populateFilt();
+  populateBhFilter();
   updateAdjBadge();
   renderAdminOverview();
   renderAdminAdj();
   renderAdminRecs();
   renderUsersList();
+  renderBanco();
 }
 
 function updateAdjBadge() {
@@ -692,8 +877,8 @@ function updateAdjBadge() {
 
 // ✅ FIX 9: aria-selected atualizado ao trocar de aba
 function switchTab(t) {
-  const tabs = { overview: 'tOverview', adjustments: 'tAdjustments', records: 'tRecords', users: 'tUsers' };
-  const pans = { overview: 'pOverview', adjustments: 'pAdjustments', records: 'pRecords', users: 'pUsers' };
+  const tabs = { overview: 'tOverview', adjustments: 'tAdjustments', records: 'tRecords', banco: 'tBanco', users: 'tUsers' };
+  const pans = { overview: 'pOverview', adjustments: 'pAdjustments', records: 'pRecords', banco: 'pBanco', users: 'pUsers' };
   Object.keys(tabs).forEach(k => {
     const tabEl = $(tabs[k]);
     const panEl = $(pans[k]);
@@ -705,6 +890,7 @@ function switchTab(t) {
   if (t === 'records')     renderAdminRecs();
   if (t === 'adjustments') renderAdminAdj();
   if (t === 'users')       renderUsersList();
+  if (t === 'banco')       renderBanco();
 }
 
 function renderAdminOverview() {
@@ -793,23 +979,19 @@ function adjItemHtml(a) {
   </div>`;
 }
 
-function processAdj(id, status, note = '') {
-  const as = getA();
-  const i  = as.findIndex(a => a.id === id);
-  if (i < 0) return;
-  as[i].status = status;
-  as[i].note   = note;
-  if (status === 'approved') {
-    const a = as[i];
-    const rs = getR();
-    rs.push({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
-    saveR(rs);
+async function processAdj(id, status, note = '') {
+  const a = getA().find(x => x.id === id);
+  if (!a) return;
+  try {
+    await fsUpdateAdj(id, { status, note });
+    if (status === 'approved') {
+      await fsAddRecord({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
+    }
+    toast(status === 'approved' ? '✅ Ajuste aprovado e lançado nos registros.' : '❌ Ajuste recusado.');
+  } catch (err) {
+    console.error(err);
+    toast('⚠ Erro ao processar o ajuste. Tente novamente.');
   }
-  saveA(as);
-  updateAdjBadge();
-  renderAdminAdj();
-  renderAdminOverview();
-  toast(status === 'approved' ? '✅ Ajuste aprovado e lançado nos registros.' : '❌ Ajuste recusado.');
 }
 
 let rejId = null;
@@ -870,29 +1052,32 @@ function renderUsersList() {
         <div class="u-name">${escHtml(u.name)}</div>
         <div class="u-login">Login: <strong>${u.id}</strong> &nbsp;·&nbsp; Senha: <strong>${u.pass}</strong></div>
       </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openScheduleModal('${u.id}')" aria-label="Editar jornada de ${escHtml(u.name)}">⏱ Jornada</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="resetPass('${u.id}')" aria-label="Redefinir senha de ${escHtml(u.name)}">🔑 Redefinir senha</button>
     </div>`).join('');
 }
 
-function addUser() {
+async function addUser() {
   const name  = ($('nName').value || '').trim();
   const id    = ($('nId').value   || '').trim().toLowerCase().replace(/[\s\W]+/g, '');
   const pass  = ($('nPass').value || '').trim();
   const errEl = $('nErr');
 
   if (!name || !id || !pass) { errEl.textContent = 'Preencha todos os campos.'; show('nErr'); return; }
-  const us = getU();
-  if (us.find(u => u.id === id)) { errEl.textContent = `O login "${id}" já existe.`; show('nErr'); return; }
+  if (getU().find(u => u.id === id)) { errEl.textContent = `O login "${id}" já existe.`; show('nErr'); return; }
 
   hide('nErr');
-  us.push({ id, name, pass, role: 'employee' });
-  saveU(us);
-  $('nName').value = '';
-  $('nId').value   = '';
-  $('nPass').value = '';
-  populateFilt();
-  renderUsersList();
-  toast(`✅ ${name} cadastrado(a) com sucesso!`);
+  try {
+    await fsSetUser({ id, name, pass, role: 'employee', startDate: todayStr(), schedule: defaultSchedule() });
+    $('nName').value = '';
+    $('nId').value   = '';
+    $('nPass').value = '';
+    toast(`✅ ${name} cadastrado(a) com sucesso! Configure a jornada em "⏱ Jornada".`);
+  } catch (err) {
+    console.error(err);
+    errEl.textContent = 'Erro ao cadastrar. Verifique sua conexão e tente novamente.';
+    show('nErr');
+  }
 }
 
 function resetPass(userId) {
@@ -905,27 +1090,282 @@ function resetPass(userId) {
   const btn = $('cfBtn');
   btn.textContent = 'Salvar';
   btn.className   = 'btn btn-navy';
-  btn.onclick     = () => {
+  btn.onclick     = async () => {
     const np = ($('npw') || {}).value?.trim();
     if (!np) { toast('⚠ Digite uma senha.'); return; }
-    const us = getU();
-    const i  = us.findIndex(u => u.id === userId);
-    if (i < 0) { closeCf(); return; }
-    us[i].pass = np;
-    saveU(us);
-    closeCf();
-    renderUsersList();
-    toast('🔑 Senha redefinida com sucesso!');
+    try {
+      await fsSetUser({ id: userId, pass: np });
+      closeCf();
+      toast('🔑 Senha redefinida com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast('⚠ Erro ao redefinir a senha.');
+    }
   };
   show('confirmModal');
   setTimeout(() => $('npw')?.focus(), 50);
 }
 
+// ─────────────── BANCO DE HORAS — ENGINE ───────────────
+const WD       = ['dom','seg','ter','qua','qui','sex','sab'];
+const WD_LABEL = { dom: 'Dom', seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui', sex: 'Sex', sab: 'Sáb' };
+const WD_FULL  = { dom: 'Domingo', seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta', sex: 'Sexta', sab: 'Sábado' };
+
+function toMin(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+function shiftMinutes(shifts) {
+  return (shifts || []).reduce((sum, [a, b]) => {
+    const ma = toMin(a), mb = toMin(b);
+    if (ma == null || mb == null || mb <= ma) return sum;
+    return sum + (mb - ma);
+  }, 0);
+}
+function expectedMinutesForDate(schedule, dateStr) {
+  if (!schedule || !schedule.days) return 0;
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = schedule.days[WD[d.getDay()]];
+  if (!day || !day.enabled) return 0;
+  return shiftMinutes(day.shifts);
+}
+// Casa entradas/saídas de um dia (ordenadas) e retorna minutos trabalhados
+function workedMinutesForDay(records) {
+  const sorted = [...records].sort((a, b) => a.datetime.localeCompare(b.datetime));
+  let total = 0, openIn = null, incomplete = false;
+  for (const r of sorted) {
+    if (r.type === 'in') {
+      if (openIn) incomplete = true;
+      openIn = r.datetime;
+    } else {
+      if (openIn) { total += (new Date(r.datetime) - new Date(openIn)) / 60000; openIn = null; }
+      else incomplete = true;
+    }
+  }
+  if (openIn) incomplete = true;
+  return { minutes: Math.max(0, total), incomplete };
+}
+function fmtHM(min) {
+  const sign = min < 0 ? '-' : '';
+  const abs  = Math.round(Math.abs(min));
+  return `${sign}${Math.floor(abs / 60)}h${String(abs % 60).padStart(2, '0')}`;
+}
+function addDaysStr(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+function dateRangeArray(startStr, endStr) {
+  const out = [];
+  let cur = startStr;
+  let guard = 0;
+  while (cur <= endStr && guard < 3660) { out.push(cur); cur = addDaysStr(cur, 1); guard++; }
+  return out;
+}
+function firstDayOfMonthStr(monthStr_) { return `${monthStr_}-01`; }
+function lastDayOfMonthStr(monthStr_) {
+  const [y, m] = monthStr_.split('-').map(Number);
+  const d = new Date(y, m, 0);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+function mondayOfWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const diff = (d.getDay() + 6) % 7; // 0 = segunda
+  d.setDate(d.getDate() - diff);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+
+// Info de um único dia para um usuário: previsto x trabalhado x saldo
+function dayInfo(user, dateStr) {
+  const expected = expectedMinutesForDate(user.schedule, dateStr);
+  const recs = getR().filter(r => r.userId === user.id && r.datetime.startsWith(dateStr));
+  const { minutes: worked, incomplete } = workedMinutesForDay(recs);
+  return {
+    expected, worked, incomplete,
+    diff: worked - expected,
+    punches: recs.slice().sort((a, b) => a.datetime.localeCompare(b.datetime)),
+  };
+}
+
+// ─────────────── BANCO DE HORAS — ADMIN ───────────────
+function populateBhFilter() {
+  const sel = $('bhEmp'); if (!sel) return;
+  const users = getU().filter(u => u.role === 'employee');
+  const prev = sel.value;
+  sel.innerHTML = users.map(u => `<option value="${u.id}">${escHtml(u.name)}</option>`).join('');
+  if (users.find(u => u.id === prev)) sel.value = prev;
+  const mEl = $('bhMonth'); if (mEl && !mEl.value) mEl.value = monthStr();
+}
+
+function renderBanco() {
+  const sel = $('bhEmp'); if (!sel) return;
+  const userId = sel.value;
+  const user = getU().find(u => u.id === userId);
+  const body = $('bhTableBody');
+  if (!user) {
+    $('bhSummary').innerHTML = '<div class="empty">Selecione uma colaboradora.</div>';
+    if (body) body.innerHTML = '';
+    return;
+  }
+  const sm = ($('bhMonth') || {}).value || monthStr();
+  const start = user.startDate || todayStr();
+  const monthStart = firstDayOfMonthStr(sm);
+  const monthEndCap = lastDayOfMonthStr(sm) < todayStr() ? lastDayOfMonthStr(sm) : todayStr();
+
+  if (monthEndCap < monthStart) {
+    $('bhSummary').innerHTML = '<div class="empty">Mês futuro — nenhum dado ainda.</div>';
+    body.innerHTML = '';
+    return;
+  }
+
+  const effectiveStart = start < monthStart ? start : monthStart; // garante acúmulo desde o início do contrato
+  const allDates = dateRangeArray(effectiveStart, monthEndCap);
+  let running = 0;
+  const rows = [];
+  allDates.forEach(d => {
+    const info = dayInfo(user, d);
+    running += info.diff;
+    if (d >= monthStart) rows.push({ date: d, ...info, running });
+  });
+
+  const target = (user.schedule || {}).weeklyTarget || 44;
+  const sumExpected = rows.reduce((s, r) => s + r.expected, 0);
+  const sumWorked   = rows.reduce((s, r) => s + r.worked, 0);
+  const sumDiff     = rows.reduce((s, r) => s + r.diff, 0);
+  const totalBalance = rows.length ? rows[rows.length - 1].running : running;
+
+  const card = (label, val, cls) => `<div class="bh-card"><div class="bh-label">${label}</div><div class="bh-value ${cls}">${val}</div></div>`;
+  $('bhSummary').innerHTML =
+    card('Meta semanal', `${target}h`, 'bh-neu') +
+    card('Previstas no mês', fmtHM(sumExpected), 'bh-neu') +
+    card('Trabalhadas no mês', fmtHM(sumWorked), 'bh-neu') +
+    card('Saldo do mês', fmtHM(sumDiff), sumDiff >= 0 ? 'bh-pos' : 'bh-neg') +
+    card('Saldo acumulado total', fmtHM(totalBalance), totalBalance >= 0 ? 'bh-pos' : 'bh-neg');
+
+  const todayS = todayStr();
+  body.innerHTML = rows.length ? rows.slice().reverse().map(r => {
+    const d = new Date(r.date + 'T00:00:00');
+    const wd = WD[d.getDay()];
+    const isOff = r.expected === 0 && r.worked === 0;
+    const punchesHtml = r.punches.length
+      ? r.punches.map(p => `${p.type === 'in' ? '⬆' : '⬇'} ${fmtDT(p.datetime).split(' ')[1]}`).join(' · ')
+      : '—';
+    return `<tr class="${isOff ? 'bh-off' : ''} ${r.date === todayS ? 'bh-today' : ''}">
+      <td>${r.date.split('-').reverse().join('/')}</td>
+      <td>${WD_LABEL[wd]}</td>
+      <td>${r.expected ? fmtHM(r.expected) : '—'}</td>
+      <td class="bh-punches">${punchesHtml}${r.incomplete ? ' <span class="bh-incomplete">⚠ incompleto</span>' : ''}</td>
+      <td>${r.worked ? fmtHM(r.worked) : '—'}</td>
+      <td class="${r.diff > 0 ? 'bh-pos' : r.diff < 0 ? 'bh-neg' : ''}">${r.expected || r.worked ? fmtHM(r.diff) : '—'}</td>
+      <td class="${r.running >= 0 ? 'bh-pos' : 'bh-neg'}">${fmtHM(r.running)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty">Nenhum dado neste período.</td></tr>';
+}
+
+// ─────────────── BANCO DE HORAS — COLABORADOR (resumo da semana atual) ───────────────
+function renderEmpBh() {
+  const el = $('empBhSummary'); if (!el || !CU) return;
+  const today = todayStr();
+  const monday = mondayOfWeek(today);
+  const dates = dateRangeArray(monday, today);
+  let expected = 0, worked = 0;
+  dates.forEach(d => { const info = dayInfo(CU, d); expected += info.expected; worked += info.worked; });
+  const diff = worked - expected;
+
+  // Saldo acumulado total (desde o início do contrato)
+  const start = CU.startDate || today;
+  let totalBalance = 0;
+  dateRangeArray(start, today).forEach(d => { totalBalance += dayInfo(CU, d).diff; });
+
+  const card = (label, val, cls) => `<div class="bh-card"><div class="bh-label">${label}</div><div class="bh-value ${cls}">${val}</div></div>`;
+  el.innerHTML =
+    card('Previsto (semana)', fmtHM(expected), 'bh-neu') +
+    card('Trabalhado (semana)', fmtHM(worked), 'bh-neu') +
+    card('Saldo (semana)', fmtHM(diff), diff >= 0 ? 'bh-pos' : 'bh-neg') +
+    card('Saldo acumulado total', fmtHM(totalBalance), totalBalance >= 0 ? 'bh-pos' : 'bh-neg');
+}
+
+// ─────────────── MODAL DE JORNADA ───────────────
+let SCH_USER_ID = null;
+function updateSchSum() {
+  let total = 0;
+  WD.forEach(k => {
+    if (!($(`schEn_${k}`) || {}).checked) return;
+    const shifts = [[($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value],
+                    [($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value]];
+    total += shiftMinutes(shifts);
+  });
+  const el = $('schSum'); if (el) el.textContent = fmtHM(total);
+  return total;
+}
+
+function openScheduleModal(userId) {
+  const user = getU().find(u => u.id === userId);
+  if (!user) { toast('Selecione uma colaboradora primeiro.'); return; }
+  SCH_USER_ID = userId;
+  const sch = user.schedule || defaultSchedule();
+  $('schModalTitle').textContent = `⏱ Jornada de trabalho — ${user.name}`;
+
+  $('schDays').innerHTML = WD.map(k => {
+    const day = sch.days[k] || { enabled: false, shifts: [] };
+    const s1 = day.shifts[0] || ['', ''];
+    const s2 = day.shifts[1] || ['', ''];
+    return `<div class="shift-row">
+      <label class="dayname"><input type="checkbox" id="schEn_${k}" onchange="updateSchSum()" ${day.enabled ? 'checked' : ''}> ${WD_FULL[k]}</label>
+      <input type="time" id="schS1_${k}" value="${s1[0] || ''}" onchange="updateSchSum()">
+      <span class="to">até</span>
+      <input type="time" id="schE1_${k}" value="${s1[1] || ''}" onchange="updateSchSum()">
+      <span class="to">e</span>
+      <input type="time" id="schS2_${k}" value="${s2[0] || ''}" onchange="updateSchSum()">
+      <span class="to">até</span>
+      <input type="time" id="schE2_${k}" value="${s2[1] || ''}" onchange="updateSchSum()">
+    </div>`;
+  }).join('');
+
+  $('schTarget').value = sch.weeklyTarget || 44;
+  hide('schErr');
+  show('scheduleModal');
+  updateSchSum();
+}
+function closeScheduleModal() { hide('scheduleModal'); SCH_USER_ID = null; }
+
+async function saveSchedule() {
+  if (!SCH_USER_ID) return;
+  const errEl = $('schErr');
+  const days = {};
+  WD.forEach(k => {
+    const enabled = ($(`schEn_${k}`) || {}).checked || false;
+    const shifts = [
+      [($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value],
+      [($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value],
+    ].filter(([a, b]) => a && b);
+    days[k] = { enabled, shifts };
+  });
+  const weeklyTarget = parseFloat($('schTarget').value) || 0;
+  if (weeklyTarget <= 0) {
+    errEl.textContent = 'Informe uma meta semanal válida.';
+    show('schErr');
+    return;
+  }
+  try {
+    await fsSetUser({ id: SCH_USER_ID, schedule: { weeklyTarget, days } });
+    closeScheduleModal();
+    toast('✅ Jornada salva com sucesso!');
+  } catch (err) {
+    console.error(err);
+    errEl.textContent = 'Erro ao salvar. Verifique sua conexão e tente novamente.';
+    show('schErr');
+  }
+}
+
 // ─────────────── FECHAR MODAL COM ESC ───────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    if (!$('adjModal').classList.contains('hidden'))     closeAdjModal();
-    if (!$('confirmModal').classList.contains('hidden')) closeCf();
+    if (!$('adjModal').classList.contains('hidden'))      closeAdjModal();
+    if (!$('confirmModal').classList.contains('hidden'))  closeCf();
+    if (!$('scheduleModal').classList.contains('hidden')) closeScheduleModal();
   }
 });
 
