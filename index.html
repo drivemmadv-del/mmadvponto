@@ -407,7 +407,10 @@
         <select id="bhEmp" onchange="renderBanco()" aria-label="Selecionar colaboradora"></select>
         <label for="bhMonth">Mês:</label>
         <input type="month" id="bhMonth" onchange="renderBanco()" aria-label="Filtrar por mês">
-        <button type="button" class="btn btn-outline btn-sm" onclick="openScheduleModal(($('bhEmp')||{}).value)" style="margin-left:auto">⏱ Editar jornada</button>
+        <div style="margin-left:auto;display:flex;gap:.5rem">
+          <button type="button" class="btn btn-gold btn-sm" onclick="openBhAdjModal()">➕➖ Ajustar horas</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openScheduleModal(($('bhEmp')||{}).value)">⏱ Editar jornada</button>
+        </div>
       </div>
 
       <div class="bh-grid" id="bhSummary" aria-live="polite"></div>
@@ -417,11 +420,16 @@
         <div class="bh-table-wrap">
           <table class="bh-table">
             <thead><tr>
-              <th>Data</th><th>Dia</th><th>Prevista</th><th>Batidas</th><th>Trabalhada</th><th>Saldo do dia</th><th>Saldo acumulado</th>
+              <th>Data</th><th>Dia</th><th>Prevista</th><th>Batidas</th><th>Trabalhada</th><th>Ajuste manual</th><th>Saldo do dia</th><th>Saldo acumulado</th>
             </tr></thead>
             <tbody id="bhTableBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="section-title">Ajustes manuais lançados</div>
+      <div class="card" role="region" aria-label="Ajustes manuais de banco de horas">
+        <div id="bhAdjList" aria-live="polite"></div>
       </div>
     </div>
 
@@ -503,6 +511,38 @@
   </div>
 </div>
 
+<!-- ═══════════════════════ MODAL AJUSTE MANUAL DE HORAS ═══════════════════════ -->
+<div id="bhAdjModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bhAdjModalTitle">
+  <div class="modal">
+    <h2 class="modal-title" id="bhAdjModalTitle">➕➖ Ajustar banco de horas</h2>
+    <p style="font-size:.85rem;color:var(--gray-500);margin-bottom:1rem">Colaboradora: <strong id="bhAdjWho"></strong></p>
+    <div class="field">
+      <label for="bhAdjDate">Data de referência</label>
+      <input id="bhAdjDate" type="date" aria-required="true">
+    </div>
+    <div class="field">
+      <label for="bhAdjType">Tipo de ajuste</label>
+      <select id="bhAdjType">
+        <option value="add">➕ Adicionar horas ao banco</option>
+        <option value="remove">➖ Remover horas do banco</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="bhAdjHours">Quantidade de horas</label>
+      <input id="bhAdjHours" type="number" min="0.25" step="0.25" placeholder="Ex: 2" aria-required="true">
+    </div>
+    <div class="field">
+      <label for="bhAdjReason">Motivo</label>
+      <textarea id="bhAdjReason" placeholder="Ex: Compensação de feriado, correção de batida esquecida..." aria-required="true"></textarea>
+    </div>
+    <div id="bhAdjErr" class="error-msg hidden" role="alert" aria-live="assertive"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeBhAdjModal()">Cancelar</button>
+      <button type="button" class="btn btn-gold" onclick="submitBhAdj()">Salvar ajuste</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════ MODAL CONFIRM ═══════════════════════ -->
 <div id="confirmModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
   <div class="modal">
@@ -536,15 +576,16 @@ const db   = firebase.firestore();
 const auth = firebase.auth();
 
 // Coleções deste app (prefixo "ponto_" para não colidir com o Agendamento)
-const COL = { U: 'ponto_users', R: 'ponto_records', A: 'ponto_adjs' };
+const COL = { U: 'ponto_users', R: 'ponto_records', A: 'ponto_adjs', BH: 'ponto_bh_adjs' };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
 // ─────────────── CACHE EM MEMÓRIA (populado em tempo real pelo Firestore) ───────────────
-let USERS = [], RECORDS = [], ADJS = [];
+let USERS = [], RECORDS = [], ADJS = [], BHADJS = [];
 let bootReady = false;
 const getU = () => USERS;
 const getR = () => RECORDS;
 const getA = () => ADJS;
+const getBH = () => BHADJS;
 
 function sh(start, end) { return { start, end }; }
 function defaultSchedule() {
@@ -576,6 +617,12 @@ async function fsAddAdj(adj) {
 async function fsUpdateAdj(id, fields) {
   await db.collection(COL.A).doc(id).update(fields);
 }
+async function fsAddBhAdj(adj) {
+  await db.collection(COL.BH).doc(adj.id).set(adj);
+}
+async function fsDeleteBhAdj(id) {
+  await db.collection(COL.BH).doc(id).delete();
+}
 
 // ─────────────── DADOS INICIAIS ───────────────
 async function seedIfEmpty() {
@@ -589,11 +636,7 @@ async function seedIfEmpty() {
   const today = todayStr();
   const seed = [
     { id: 'izabel', name: 'Izabel',        pass: 'izabel123',   role: 'employee', startDate: today, schedule: defaultSchedule() },
-    { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee', startDate: today, schedule: (() => {
-        const s = defaultSchedule();
-        ['seg','ter','qua','qui','sex'].forEach(k => s.days[k].shifts = [sh('07:00','11:00'), sh('13:00','18:00')]);
-        return s;
-      })() },
+    { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee', startDate: today, schedule: defaultSchedule() },
     { id: 'admin',  name: 'Administrador',  pass: 'mmadv@admin', role: 'admin'    },
   ];
   const batch = db.batch();
@@ -627,6 +670,10 @@ function boot() {
     db.collection(COL.A).onSnapshot(
       snap => { ADJS = snap.docs.map(d => d.data()); onDataChanged(); },
       err  => { console.error('Firebase error (adjs):', err); showConnError(); }
+    );
+    db.collection(COL.BH).onSnapshot(
+      snap => { BHADJS = snap.docs.map(d => d.data()); onDataChanged(); },
+      err  => { console.error('Firebase error (bh adjs):', err); showConnError(); }
     );
   });
 }
@@ -1178,14 +1225,18 @@ function mondayOfWeek(dateStr) {
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
 }
 
-// Info de um único dia para um usuário: previsto x trabalhado x saldo
+// Info de um único dia para um usuário: previsto x trabalhado x saldo (+ ajustes manuais)
+function manualMinutesForDate(userId, dateStr) {
+  return getBH().filter(a => a.userId === userId && a.date === dateStr).reduce((s, a) => s + a.minutes, 0);
+}
 function dayInfo(user, dateStr) {
   const expected = expectedMinutesForDate(user.schedule, dateStr);
   const recs = getR().filter(r => r.userId === user.id && r.datetime.startsWith(dateStr));
   const { minutes: worked, incomplete } = workedMinutesForDay(recs);
+  const manual = manualMinutesForDate(user.id, dateStr);
   return {
-    expected, worked, incomplete,
-    diff: worked - expected,
+    expected, worked, incomplete, manual,
+    diff: worked - expected + manual,
     punches: recs.slice().sort((a, b) => a.datetime.localeCompare(b.datetime)),
   };
 }
@@ -1249,7 +1300,7 @@ function renderBanco() {
   body.innerHTML = rows.length ? rows.slice().reverse().map(r => {
     const d = new Date(r.date + 'T00:00:00');
     const wd = WD[d.getDay()];
-    const isOff = r.expected === 0 && r.worked === 0;
+    const isOff = r.expected === 0 && r.worked === 0 && r.manual === 0;
     const punchesHtml = r.punches.length
       ? r.punches.map(p => `${p.type === 'in' ? '⬆' : '⬇'} ${fmtDT(p.datetime).split(' ')[1]}`).join(' · ')
       : '—';
@@ -1259,10 +1310,88 @@ function renderBanco() {
       <td>${r.expected ? fmtHM(r.expected) : '—'}</td>
       <td class="bh-punches">${punchesHtml}${r.incomplete ? ' <span class="bh-incomplete">⚠ incompleto</span>' : ''}</td>
       <td>${r.worked ? fmtHM(r.worked) : '—'}</td>
-      <td class="${r.diff > 0 ? 'bh-pos' : r.diff < 0 ? 'bh-neg' : ''}">${r.expected || r.worked ? fmtHM(r.diff) : '—'}</td>
+      <td class="${r.manual > 0 ? 'bh-pos' : r.manual < 0 ? 'bh-neg' : ''}">${r.manual ? fmtHM(r.manual) : '—'}</td>
+      <td class="${r.diff > 0 ? 'bh-pos' : r.diff < 0 ? 'bh-neg' : ''}">${r.expected || r.worked || r.manual ? fmtHM(r.diff) : '—'}</td>
       <td class="${r.running >= 0 ? 'bh-pos' : 'bh-neg'}">${fmtHM(r.running)}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" class="empty">Nenhum dado neste período.</td></tr>';
+  }).join('') : '<tr><td colspan="8" class="empty">Nenhum dado neste período.</td></tr>';
+
+  renderBhAdjList(userId);
+}
+
+// ─────────────── AJUSTE MANUAL DE HORAS ───────────────
+function renderBhAdjList(userId) {
+  const el = $('bhAdjList'); if (!el) return;
+  const list = getBH().filter(a => a.userId === userId).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  el.innerHTML = list.length ? list.map(a => `
+    <div class="rec">
+      <div class="dot ${a.minutes >= 0 ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
+      <div class="rec-info">
+        <div class="rec-label">${a.date.split('-').reverse().join('/')} — <span class="${a.minutes >= 0 ? 'bh-pos' : 'bh-neg'}">${fmtHM(a.minutes)}</span></div>
+        <div class="rec-time">${escHtml(a.reason)}</div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="deleteBhAdj('${a.id}')" aria-label="Remover ajuste">🗑</button>
+    </div>`).join('') : '<div class="empty">Nenhum ajuste manual lançado.</div>';
+}
+
+function openBhAdjModal() {
+  const sel = $('bhEmp');
+  const user = getU().find(u => u.id === (sel || {}).value);
+  if (!user) { toast('Selecione uma colaboradora primeiro.'); return; }
+  $('bhAdjWho').textContent = user.name;
+  $('bhAdjDate').value = todayStr();
+  $('bhAdjType').value = 'add';
+  $('bhAdjHours').value = '';
+  $('bhAdjReason').value = '';
+  hide('bhAdjErr');
+  show('bhAdjModal');
+  setTimeout(() => $('bhAdjHours')?.focus(), 50);
+}
+function closeBhAdjModal() { hide('bhAdjModal'); }
+
+async function submitBhAdj() {
+  const sel = $('bhEmp');
+  const user = getU().find(u => u.id === (sel || {}).value);
+  const errEl = $('bhAdjErr');
+  if (!user) return;
+
+  const date   = $('bhAdjDate').value;
+  const type   = $('bhAdjType').value; // 'add' | 'remove'
+  const hours  = parseFloat($('bhAdjHours').value);
+  const reason = ($('bhAdjReason').value || '').trim();
+
+  if (!date || !hours || hours <= 0 || !reason) {
+    errEl.textContent = 'Preencha data, quantidade de horas (maior que zero) e o motivo.';
+    show('bhAdjErr');
+    return;
+  }
+
+  const minutes = Math.round(hours * 60) * (type === 'remove' ? -1 : 1);
+  const adj = {
+    id: uid(), userId: user.id, userName: user.name,
+    date, minutes, reason,
+    createdAt: new Date().toISOString(), createdBy: CU.name,
+  };
+  try {
+    await fsAddBhAdj(adj);
+    closeBhAdjModal();
+    toast(type === 'remove' ? '✅ Horas removidas do banco.' : '✅ Horas adicionadas ao banco.');
+  } catch (err) {
+    console.error(err);
+    errEl.textContent = 'Erro ao salvar. Verifique sua conexão e tente novamente.';
+    show('bhAdjErr');
+  }
+}
+
+async function deleteBhAdj(id) {
+  if (!confirm('Remover este ajuste manual? Essa ação não pode ser desfeita.')) return;
+  try {
+    await fsDeleteBhAdj(id);
+    toast('🗑 Ajuste removido.');
+  } catch (err) {
+    console.error(err);
+    toast('⚠ Erro ao remover o ajuste.');
+  }
 }
 
 // ─────────────── BANCO DE HORAS — COLABORADOR (resumo da semana atual) ───────────────
@@ -1271,9 +1400,8 @@ function renderEmpBh() {
   const today = todayStr();
   const monday = mondayOfWeek(today);
   const dates = dateRangeArray(monday, today);
-  let expected = 0, worked = 0;
-  dates.forEach(d => { const info = dayInfo(CU, d); expected += info.expected; worked += info.worked; });
-  const diff = worked - expected;
+  let expected = 0, worked = 0, diff = 0;
+  dates.forEach(d => { const info = dayInfo(CU, d); expected += info.expected; worked += info.worked; diff += info.diff; });
 
   // Saldo acumulado total (desde o início do contrato)
   const start = CU.startDate || today;
@@ -1369,6 +1497,7 @@ document.addEventListener('keydown', e => {
     if (!$('adjModal').classList.contains('hidden'))      closeAdjModal();
     if (!$('confirmModal').classList.contains('hidden'))  closeCf();
     if (!$('scheduleModal').classList.contains('hidden')) closeScheduleModal();
+    if (!$('bhAdjModal').classList.contains('hidden'))    closeBhAdjModal();
   }
 });
 
