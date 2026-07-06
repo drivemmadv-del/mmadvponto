@@ -488,7 +488,7 @@
     </div>
     <div id="adjOrigInfo" class="hidden" style="font-size:.8rem;color:var(--gray-500);margin:-.6rem 0 1rem;padding:.5rem .75rem;background:var(--gray-100);border-radius:7px"></div>
     <div class="field">
-      <label for="adjType">Tipo de registro</label>
+      <label for="adjType">Tipo de registro correto (Entrada ou Saída)</label>
       <select id="adjType">
         <option value="in">Entrada</option>
         <option value="out">Saída</option>
@@ -901,7 +901,7 @@ function renderMyAdj() {
       <div class="dot ${a.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
       <div class="rec-info">
         <div class="rec-label">${a.type === 'in' ? 'Entrada' : 'Saída'} — ${a.reqDate} às ${a.reqTime}</div>
-        ${a.origDatetime ? `<div class="rec-time">Substitui o registro de ${fmtDT(a.origDatetime)}</div>` : `<div class="rec-time">Lançamento de registro ausente</div>`}
+        ${a.origDatetime ? `<div class="rec-time">Substitui o registro de ${a.origType === 'in' ? 'Entrada' : 'Saída'} de ${fmtDT(a.origDatetime)}${a.origType !== a.type ? ` (tipo alterado)` : ''}</div>` : `<div class="rec-time">Lançamento de registro ausente</div>`}
         <div class="rec-time"><em>"${escHtml(a.just)}"</em></div>
         ${a.note ? `<div class="rec-time" style="color:var(--red)">Resposta: ${escHtml(a.note)}</div>` : ''}
       </div>
@@ -952,9 +952,12 @@ function openAdjModal() {
 }
 function closeAdjModal() { hide('adjModal'); }
 
-// Ao selecionar um registro existente, o tipo e a data ficam travados
-// (são os do registro original) e o horário sugerido vira o horário
-// batido — a colaboradora só precisa digitar o horário correto.
+// Ao selecionar um registro existente, o tipo e a data vêm preenchidos com
+// os valores originais (para facilitar), mas continuam editáveis — afinal,
+// a colaboradora pode ter batido "Entrada" quando na verdade era "Saída".
+// Só o horário sugerido usa o valor batido; a data fica travada (é a data
+// do registro selecionado), pois trocar de dia normalmente indica que é
+// outro registro, não uma correção deste.
 function onAdjOrigChange() {
   const id = $('adjOrigRec').value;
   const infoEl = $('adjOrigInfo');
@@ -968,11 +971,11 @@ function onAdjOrigChange() {
   if (!rec) return;
   const d = new Date(rec.datetime);
   $('adjType').value = rec.type;
-  $('adjType').disabled = true;
+  $('adjType').disabled = false;
   $('adjDate').value = `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
   $('adjDate').disabled = true;
   $('adjTime').value = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
-  infoEl.textContent = `Horário batido atualmente: ${fmtDT(rec.datetime)}. Após a aprovação, esse registro será substituído pelo horário correto informado abaixo.`;
+  infoEl.textContent = `Registro atual: ${rec.type === 'in' ? 'Entrada' : 'Saída'} — ${fmtDT(rec.datetime)}. Ajuste o tipo e/ou o horário corretos abaixo; após a aprovação, esse registro será substituído.`;
   show(infoEl.id);
   setTimeout(() => $('adjTime').focus(), 50);
 }
@@ -994,8 +997,8 @@ async function submitAdj() {
   const origRec = origId ? getR().find(r => r.id === origId) : null;
   const reqISO = new Date(`${date}T${time}:00`).toISOString();
 
-  if (origRec && reqISO === origRec.datetime) {
-    errEl.textContent = 'O horário correto informado é igual ao horário já batido. Informe o horário certo.';
+  if (origRec && reqISO === origRec.datetime && type === origRec.type) {
+    errEl.textContent = 'Nada foi alterado: informe o horário e/ou o tipo (Entrada/Saída) corretos.';
     show('adjErr');
     return;
   }
@@ -1011,6 +1014,7 @@ async function submitAdj() {
     // Referência ao registro original a ser substituído (se houver)
     origRecordId: origRec ? origRec.id : null,
     origDatetime: origRec ? origRec.datetime : null,
+    origType: origRec ? origRec.type : null,
   };
   try {
     await fsAddAdj(a);
@@ -1120,7 +1124,7 @@ function renderAdminAdj() {
             </div>
             <span class="badge ${cls}">${lbl}</span>
           </div>
-          ${a.origDatetime ? `<div class="adj-det" style="color:var(--gray-500)">Registro original: ${fmtDT(a.origDatetime)}</div>` : ''}
+          ${a.origDatetime ? `<div class="adj-det" style="color:var(--gray-500)">Registro original: ${a.origType === 'in' ? 'Entrada' : 'Saída'} — ${fmtDT(a.origDatetime)}${a.origType !== a.type ? ` → tipo alterado para ${a.type === 'in' ? 'Entrada' : 'Saída'}` : ''}</div>` : ''}
           <div class="adj-just">"${escHtml(a.just)}"</div>
           ${a.note ? `<div style="font-size:.8rem;color:var(--red);margin-top:.25rem">Motivo da recusa: ${escHtml(a.note)}</div>` : ''}
         </div>`;
@@ -1139,7 +1143,7 @@ function adjItemHtml(a) {
       <span class="badge badge-pending">⏳ Pendente</span>
     </div>
     ${a.origDatetime
-      ? `<div class="adj-det" style="color:var(--amber)">🔁 Substituirá o registro batido em ${fmtDT(a.origDatetime)}</div>`
+      ? `<div class="adj-det" style="color:var(--amber)">🔁 Substituirá o registro de ${a.origType === 'in' ? 'Entrada' : 'Saída'} batido em ${fmtDT(a.origDatetime)}${a.origType !== a.type ? ` — <strong>tipo será alterado para ${a.type === 'in' ? 'Entrada' : 'Saída'}</strong>` : ''}</div>`
       : `<div class="adj-det" style="color:var(--amber)">➕ Registro novo (colaboradora não bateu o ponto)</div>`}
     <div class="adj-just">"${escHtml(a.just)}"</div>
     <div style="font-size:.78rem;color:var(--gray-500)">Solicitado em ${fmtDT(a.createdAt)}</div>
@@ -1157,10 +1161,11 @@ async function processAdj(id, status, note = '') {
     await fsUpdateAdj(id, { status, note });
     if (status === 'approved') {
       if (a.origRecordId) {
-        // Substitui o horário do registro original em vez de criar um novo —
-        // a marcação antiga (ex.: 08:20) é eliminada, ficando somente a
-        // marcação corrigida (ex.: 08:00) no registro do dia.
+        // Substitui horário E tipo do registro original em vez de criar um
+        // novo — cobre tanto "corrigir o horário" quanto "bati Entrada
+        // quando era Saída". A marcação antiga é eliminada por completo.
         await fsUpdateRecord(a.origRecordId, {
+          type: a.type,
           datetime: a.reqISO,
           manual: true,
           adjRef: id,
