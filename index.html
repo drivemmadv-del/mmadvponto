@@ -546,17 +546,18 @@ const getU = () => USERS;
 const getR = () => RECORDS;
 const getA = () => ADJS;
 
+function sh(start, end) { return { start, end }; }
 function defaultSchedule() {
   const mkDay = (enabled, shifts) => ({ enabled, shifts });
   return {
     weeklyTarget: 44,
     days: {
       dom: mkDay(false, []),
-      seg: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
-      ter: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
-      qua: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
-      qui: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
-      sex: mkDay(true,  [['08:00','12:00'],['13:00','18:00']]),
+      seg: mkDay(true,  [sh('08:00','12:00'), sh('13:00','18:00')]),
+      ter: mkDay(true,  [sh('08:00','12:00'), sh('13:00','18:00')]),
+      qua: mkDay(true,  [sh('08:00','12:00'), sh('13:00','18:00')]),
+      qui: mkDay(true,  [sh('08:00','12:00'), sh('13:00','18:00')]),
+      sex: mkDay(true,  [sh('08:00','12:00'), sh('13:00','18:00')]),
       sab: mkDay(false, []),
     },
   };
@@ -590,7 +591,7 @@ async function seedIfEmpty() {
     { id: 'izabel', name: 'Izabel',        pass: 'izabel123',   role: 'employee', startDate: today, schedule: defaultSchedule() },
     { id: 'kelly',  name: 'Kelly',          pass: 'kelly123',    role: 'employee', startDate: today, schedule: (() => {
         const s = defaultSchedule();
-        ['seg','ter','qua','qui','sex'].forEach(k => s.days[k].shifts = [['07:00','11:00'],['13:00','18:00']]);
+        ['seg','ter','qua','qui','sex'].forEach(k => s.days[k].shifts = [sh('07:00','11:00'), sh('13:00','18:00')]);
         return s;
       })() },
     { id: 'admin',  name: 'Administrador',  pass: 'mmadv@admin', role: 'admin'    },
@@ -1118,8 +1119,8 @@ function toMin(hhmm) {
   return h * 60 + m;
 }
 function shiftMinutes(shifts) {
-  return (shifts || []).reduce((sum, [a, b]) => {
-    const ma = toMin(a), mb = toMin(b);
+  return (shifts || []).reduce((sum, s) => {
+    const ma = toMin(s.start), mb = toMin(s.end);
     if (ma == null || mb == null || mb <= ma) return sum;
     return sum + (mb - ma);
   }, 0);
@@ -1293,8 +1294,10 @@ function updateSchSum() {
   let total = 0;
   WD.forEach(k => {
     if (!($(`schEn_${k}`) || {}).checked) return;
-    const shifts = [[($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value],
-                    [($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value]];
+    const shifts = [
+      sh(($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value),
+      sh(($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value),
+    ];
     total += shiftMinutes(shifts);
   });
   const el = $('schSum'); if (el) el.textContent = fmtHM(total);
@@ -1310,17 +1313,17 @@ function openScheduleModal(userId) {
 
   $('schDays').innerHTML = WD.map(k => {
     const day = sch.days[k] || { enabled: false, shifts: [] };
-    const s1 = day.shifts[0] || ['', ''];
-    const s2 = day.shifts[1] || ['', ''];
+    const s1 = day.shifts[0] || { start: '', end: '' };
+    const s2 = day.shifts[1] || { start: '', end: '' };
     return `<div class="shift-row">
       <label class="dayname"><input type="checkbox" id="schEn_${k}" onchange="updateSchSum()" ${day.enabled ? 'checked' : ''}> ${WD_FULL[k]}</label>
-      <input type="time" id="schS1_${k}" value="${s1[0] || ''}" onchange="updateSchSum()">
+      <input type="time" id="schS1_${k}" value="${s1.start || ''}" onchange="updateSchSum()">
       <span class="to">até</span>
-      <input type="time" id="schE1_${k}" value="${s1[1] || ''}" onchange="updateSchSum()">
+      <input type="time" id="schE1_${k}" value="${s1.end || ''}" onchange="updateSchSum()">
       <span class="to">e</span>
-      <input type="time" id="schS2_${k}" value="${s2[0] || ''}" onchange="updateSchSum()">
+      <input type="time" id="schS2_${k}" value="${s2.start || ''}" onchange="updateSchSum()">
       <span class="to">até</span>
-      <input type="time" id="schE2_${k}" value="${s2[1] || ''}" onchange="updateSchSum()">
+      <input type="time" id="schE2_${k}" value="${s2.end || ''}" onchange="updateSchSum()">
     </div>`;
   }).join('');
 
@@ -1338,9 +1341,9 @@ async function saveSchedule() {
   WD.forEach(k => {
     const enabled = ($(`schEn_${k}`) || {}).checked || false;
     const shifts = [
-      [($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value],
-      [($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value],
-    ].filter(([a, b]) => a && b);
+      sh(($(`schS1_${k}`)||{}).value, ($(`schE1_${k}`)||{}).value),
+      sh(($(`schS2_${k}`)||{}).value, ($(`schE2_${k}`)||{}).value),
+    ].filter(s => s.start && s.end);
     days[k] = { enabled, shifts };
   });
   const weeklyTarget = parseFloat($('schTarget').value) || 0;
