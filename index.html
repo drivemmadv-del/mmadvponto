@@ -142,6 +142,16 @@
     .clock-time { font-size: 3.2rem; font-weight: 800; color: var(--navy); letter-spacing: 3px; margin-bottom: 1.5rem; font-variant-numeric: tabular-nums; }
 
     .punch-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 380px; margin: 0 auto 1rem; }
+
+    /* ─────────────── HORAS TRABALHADAS HOJE (ao vivo) ─────────────── */
+    .worked-today {
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      margin: -.4rem 0 1.1rem; font-size: .82rem; color: var(--gray-500);
+    }
+    .worked-today .wt-value { font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; font-size: .95rem; }
+    .worked-today.wt-live .wt-value { color: var(--green); }
+    .worked-today .wt-status { font-size: .75rem; }
+
     .btn-punch {
       padding: 1.1rem; font-size: 1rem; font-weight: 800; border: none;
       border-radius: 12px; cursor: pointer; transition: all .18s; font-family: inherit;
@@ -317,6 +327,11 @@
     <div class="clock-card" aria-label="Relógio e registro de ponto">
       <div class="clock-date" id="empDate" aria-live="polite"></div>
       <div class="clock-time" id="empTime" aria-live="off">00:00:00</div>
+      <div class="worked-today" id="empWorkedToday" aria-live="polite">
+        <span>Trabalhado hoje:</span>
+        <span class="wt-value" id="empWorkedVal">0h00</span>
+        <span class="wt-status" id="empWorkedStatus"></span>
+      </div>
       <div class="punch-row" role="group" aria-label="Registrar ponto">
         <button type="button" class="btn-punch btn-entrada" onclick="punch('in')"  aria-label="Registrar entrada">⬆ Entrada</button>
         <button type="button" class="btn-punch btn-saida"   onclick="punch('out')" aria-label="Registrar saída">⬇ Saída</button>
@@ -744,9 +759,41 @@ function tick() {
   const te = $('empTime');
   if (de) de.textContent = fmtFull(n);
   if (te) te.textContent = `${p2(n.getHours())}:${p2(n.getMinutes())}:${p2(n.getSeconds())}`;
+  renderWorkedToday();
 }
 setInterval(tick, 1000);
 tick();
+
+// ─────────────── HORAS TRABALHADAS HOJE (ao vivo) ───────────────
+// Soma os pares entrada/saída fechados do dia e, se houver uma entrada em
+// aberto (colaboradora ainda "batida"), soma também o tempo decorrido até agora.
+function workedMinutesForDayLive(records) {
+  const sorted = [...records].sort((a, b) => a.datetime.localeCompare(b.datetime));
+  let total = 0, openIn = null;
+  for (const r of sorted) {
+    if (r.type === 'in') {
+      openIn = r.datetime;
+    } else if (openIn) {
+      total += (new Date(r.datetime) - new Date(openIn)) / 60000;
+      openIn = null;
+    }
+  }
+  const stillWorking = !!openIn;
+  if (openIn) total += (Date.now() - new Date(openIn)) / 60000;
+  return { minutes: Math.max(0, total), stillWorking };
+}
+
+function renderWorkedToday() {
+  if (!CU || CU.role !== 'employee') return;
+  const valEl = $('empWorkedVal'), statusEl = $('empWorkedStatus'), wrapEl = $('empWorkedToday');
+  if (!valEl) return;
+  const today = todayStr();
+  const recs = getR().filter(r => r.userId === CU.id && r.datetime.startsWith(today));
+  const { minutes, stillWorking } = workedMinutesForDayLive(recs);
+  valEl.textContent = fmtHM(minutes);
+  if (statusEl) statusEl.textContent = stillWorking ? '🟢 em andamento' : '';
+  if (wrapEl) wrapEl.classList.toggle('wt-live', stillWorking);
+}
 
 // ─────────────── LOGIN / LOGOUT ───────────────
 function doLogin() {
@@ -818,6 +865,7 @@ function renderEmpView() {
   renderMyAdj();
   renderHist();
   renderEmpBh();
+  renderWorkedToday();
 }
 
 function recHtml(r) {
@@ -826,7 +874,6 @@ function recHtml(r) {
     <div class="rec-info">
       <div class="rec-label">${r.type === 'in' ? '⬆ Entrada' : '⬇ Saída'}</div>
       <div class="rec-time">${fmtDT(r.datetime)}</div>
-      ${r.correctedFrom ? `<div class="rec-time" style="text-decoration:line-through;color:var(--gray-500)">Original: ${fmtDT(r.correctedFrom)}</div>` : ''}
     </div>
     ${r.manual ? '<span class="badge badge-adj">Ajustado</span>' : ''}
   </div>`;
@@ -1111,12 +1158,12 @@ async function processAdj(id, status, note = '') {
     if (status === 'approved') {
       if (a.origRecordId) {
         // Substitui o horário do registro original em vez de criar um novo —
-        // a batida das 08:20 vira 08:00, mantendo o histórico de correção.
+        // a marcação antiga (ex.: 08:20) é eliminada, ficando somente a
+        // marcação corrigida (ex.: 08:00) no registro do dia.
         await fsUpdateRecord(a.origRecordId, {
           datetime: a.reqISO,
           manual: true,
           adjRef: id,
-          correctedFrom: a.origDatetime || null,
         });
       } else {
         await fsAddRecord({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
