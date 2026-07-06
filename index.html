@@ -466,6 +466,13 @@
   <div class="modal">
     <h2 class="modal-title" id="adjModalTitle">✎ Solicitar Ajuste de Ponto</h2>
     <div class="field">
+      <label for="adjOrigRec">Registro a corrigir</label>
+      <select id="adjOrigRec" onchange="onAdjOrigChange()">
+        <option value="">➕ Não bati o ponto (lançar novo registro)</option>
+      </select>
+    </div>
+    <div id="adjOrigInfo" class="hidden" style="font-size:.8rem;color:var(--gray-500);margin:-.6rem 0 1rem;padding:.5rem .75rem;background:var(--gray-100);border-radius:7px"></div>
+    <div class="field">
       <label for="adjType">Tipo de registro</label>
       <select id="adjType">
         <option value="in">Entrada</option>
@@ -610,6 +617,9 @@ async function fsSetUser(userObj) {
 }
 async function fsAddRecord(rec) {
   await db.collection(COL.R).doc(rec.id).set(rec);
+}
+async function fsUpdateRecord(id, fields) {
+  await db.collection(COL.R).doc(id).update(fields);
 }
 async function fsAddAdj(adj) {
   await db.collection(COL.A).doc(adj.id).set(adj);
@@ -816,6 +826,7 @@ function recHtml(r) {
     <div class="rec-info">
       <div class="rec-label">${r.type === 'in' ? '⬆ Entrada' : '⬇ Saída'}</div>
       <div class="rec-time">${fmtDT(r.datetime)}</div>
+      ${r.correctedFrom ? `<div class="rec-time" style="text-decoration:line-through;color:var(--gray-500)">Original: ${fmtDT(r.correctedFrom)}</div>` : ''}
     </div>
     ${r.manual ? '<span class="badge badge-adj">Ajustado</span>' : ''}
   </div>`;
@@ -843,6 +854,7 @@ function renderMyAdj() {
       <div class="dot ${a.type === 'in' ? 'dot-in' : 'dot-out'}" aria-hidden="true"></div>
       <div class="rec-info">
         <div class="rec-label">${a.type === 'in' ? 'Entrada' : 'Saída'} — ${a.reqDate} às ${a.reqTime}</div>
+        ${a.origDatetime ? `<div class="rec-time">Substitui o registro de ${fmtDT(a.origDatetime)}</div>` : `<div class="rec-time">Lançamento de registro ausente</div>`}
         <div class="rec-time"><em>"${escHtml(a.just)}"</em></div>
         ${a.note ? `<div class="rec-time" style="color:var(--red)">Resposta: ${escHtml(a.note)}</div>` : ''}
       </div>
@@ -862,16 +874,64 @@ function renderHist() {
 // ─────────────── MODAL AJUSTE ───────────────
 function openAdjModal() {
   const now = new Date();
+
+  // Lista os registros da própria colaboradora (mais recentes primeiro) para
+  // que ela selecione EXATAMENTE qual batida deseja corrigir, em vez de
+  // digitar tipo/data/hora "no escuro".
+  const myRecs = getR()
+    .filter(r => r.userId === CU.id)
+    .slice()
+    .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+    .slice(0, 60); // últimas 60 batidas é mais que suficiente
+
+  const sel = $('adjOrigRec');
+  sel.innerHTML = '<option value="">➕ Não bati o ponto (lançar novo registro)</option>' +
+    myRecs.map(r => {
+      const dt = fmtDT(r.datetime);
+      const lbl = r.type === 'in' ? 'Entrada' : 'Saída';
+      return `<option value="${r.id}">${lbl} — ${dt}</option>`;
+    }).join('');
+
+  sel.value = '';
+  $('adjType').disabled = false;
+  $('adjDate').disabled = false;
   $('adjDate').value = `${now.getFullYear()}-${p2(now.getMonth()+1)}-${p2(now.getDate())}`;
   $('adjTime').value = `${p2(now.getHours())}:${p2(now.getMinutes())}`;
   $('adjJust').value = '';
+  hide('adjOrigInfo');
   hide('adjErr');
   show('adjModal');
-  setTimeout(() => $('adjType').focus(), 50);
+  setTimeout(() => sel.focus(), 50);
 }
 function closeAdjModal() { hide('adjModal'); }
 
+// Ao selecionar um registro existente, o tipo e a data ficam travados
+// (são os do registro original) e o horário sugerido vira o horário
+// batido — a colaboradora só precisa digitar o horário correto.
+function onAdjOrigChange() {
+  const id = $('adjOrigRec').value;
+  const infoEl = $('adjOrigInfo');
+  if (!id) {
+    $('adjType').disabled = false;
+    $('adjDate').disabled = false;
+    hide(infoEl.id);
+    return;
+  }
+  const rec = getR().find(r => r.id === id);
+  if (!rec) return;
+  const d = new Date(rec.datetime);
+  $('adjType').value = rec.type;
+  $('adjType').disabled = true;
+  $('adjDate').value = `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  $('adjDate').disabled = true;
+  $('adjTime').value = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  infoEl.textContent = `Horário batido atualmente: ${fmtDT(rec.datetime)}. Após a aprovação, esse registro será substituído pelo horário correto informado abaixo.`;
+  show(infoEl.id);
+  setTimeout(() => $('adjTime').focus(), 50);
+}
+
 async function submitAdj() {
+  const origId = $('adjOrigRec').value || null;
   const type = $('adjType').value;
   const date = $('adjDate').value;
   const time = $('adjTime').value;
@@ -884,14 +944,26 @@ async function submitAdj() {
     return;
   }
 
+  const origRec = origId ? getR().find(r => r.id === origId) : null;
+  const reqISO = new Date(`${date}T${time}:00`).toISOString();
+
+  if (origRec && reqISO === origRec.datetime) {
+    errEl.textContent = 'O horário correto informado é igual ao horário já batido. Informe o horário certo.';
+    show('adjErr');
+    return;
+  }
+
   const a = {
     id: uid(), userId: CU.id, userName: CU.name,
     type,
     reqDate: date.split('-').reverse().join('/'),
     reqTime: time,
-    reqISO:  new Date(`${date}T${time}:00`).toISOString(),
+    reqISO,
     just, status: 'pending', note: '',
     createdAt: new Date().toISOString(),
+    // Referência ao registro original a ser substituído (se houver)
+    origRecordId: origRec ? origRec.id : null,
+    origDatetime: origRec ? origRec.datetime : null,
   };
   try {
     await fsAddAdj(a);
@@ -1001,6 +1073,7 @@ function renderAdminAdj() {
             </div>
             <span class="badge ${cls}">${lbl}</span>
           </div>
+          ${a.origDatetime ? `<div class="adj-det" style="color:var(--gray-500)">Registro original: ${fmtDT(a.origDatetime)}</div>` : ''}
           <div class="adj-just">"${escHtml(a.just)}"</div>
           ${a.note ? `<div style="font-size:.8rem;color:var(--red);margin-top:.25rem">Motivo da recusa: ${escHtml(a.note)}</div>` : ''}
         </div>`;
@@ -1018,6 +1091,9 @@ function adjItemHtml(a) {
       </div>
       <span class="badge badge-pending">⏳ Pendente</span>
     </div>
+    ${a.origDatetime
+      ? `<div class="adj-det" style="color:var(--amber)">🔁 Substituirá o registro batido em ${fmtDT(a.origDatetime)}</div>`
+      : `<div class="adj-det" style="color:var(--amber)">➕ Registro novo (colaboradora não bateu o ponto)</div>`}
     <div class="adj-just">"${escHtml(a.just)}"</div>
     <div style="font-size:.78rem;color:var(--gray-500)">Solicitado em ${fmtDT(a.createdAt)}</div>
     <div class="adj-btns">
@@ -1033,9 +1109,22 @@ async function processAdj(id, status, note = '') {
   try {
     await fsUpdateAdj(id, { status, note });
     if (status === 'approved') {
-      await fsAddRecord({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
+      if (a.origRecordId) {
+        // Substitui o horário do registro original em vez de criar um novo —
+        // a batida das 08:20 vira 08:00, mantendo o histórico de correção.
+        await fsUpdateRecord(a.origRecordId, {
+          datetime: a.reqISO,
+          manual: true,
+          adjRef: id,
+          correctedFrom: a.origDatetime || null,
+        });
+      } else {
+        await fsAddRecord({ id: uid(), userId: a.userId, userName: a.userName, type: a.type, datetime: a.reqISO, manual: true, adjRef: id });
+      }
     }
-    toast(status === 'approved' ? '✅ Ajuste aprovado e lançado nos registros.' : '❌ Ajuste recusado.');
+    toast(status === 'approved'
+      ? (a.origRecordId ? '✅ Ajuste aprovado — horário substituído com sucesso.' : '✅ Ajuste aprovado e lançado nos registros.')
+      : '❌ Ajuste recusado.');
   } catch (err) {
     console.error(err);
     toast('⚠ Erro ao processar o ajuste. Tente novamente.');
